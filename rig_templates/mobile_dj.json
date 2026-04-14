@@ -1,0 +1,192 @@
+{
+  "_comment": "Mobile DJ rig — 2 wash bars, 1 derby, 1 strobe, no moving heads. 20 DMX channels. Most constrained template.",
+  "id": "mobile_dj",
+  "name": "Mobile DJ",
+  "description": "Portable rig that fits in a van and sets up in 30 minutes. Two 6-channel RGBAW+UV LED wash bars (T-bar mounted) provide full-colour wash. One derby/moonflower effect adds rotating split beams for texture. One LED strobe. No moving heads — movement_enable cues are silently skipped. Strobe rate capped at 8 Hz for all-ages and small-venue safety. Single colour zone only.",
+
+  "universe": 1,
+  "channel_budget": 20,
+
+  "fixture_groups": {
+    "wash_all": {
+      "label": "Wash Bars",
+      "description": "Two 6-channel RGBAW+UV LED bars on a T-bar stand, aimed at the dance floor. Addressed identically so they always match colour.",
+      "fixture_count": 2,
+      "fixtures": [
+        {
+          "id": "wash_bar_l",
+          "type": "led_wash_bar_rgbawuv",
+          "dmx_start": 1,
+          "channel_count": 6,
+          "channels": {
+            "red":    1,
+            "green":  2,
+            "blue":   3,
+            "amber":  4,
+            "white":  5,
+            "uv":     6
+          },
+          "model_hint": "Generic 6-ch RGBAW+UV Wash Bar",
+          "note": "No dedicated dimmer channel; master intensity is achieved by scaling all colour channels proportionally."
+        },
+        {
+          "id": "wash_bar_r",
+          "type": "led_wash_bar_rgbawuv",
+          "dmx_start": 7,
+          "channel_count": 6,
+          "channels": {
+            "red":    1,
+            "green":  2,
+            "blue":   3,
+            "amber":  4,
+            "white":  5,
+            "uv":     6
+          },
+          "model_hint": "Generic 6-ch RGBAW+UV Wash Bar"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBAWUV",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "intensity_via": "channel_scaling",
+        "strobe": false,
+        "movement": false,
+        "zones": 1
+      }
+    },
+
+    "back_wash": {
+      "label": "Back Wash (aliased to wash_all)",
+      "description": "No separate rear fixtures. Cues targeting back_wash are rerouted to wash_all with intensity scaled to 70%.",
+      "fixture_count": 0,
+      "fixtures": [],
+      "capabilities": {
+        "color": false,
+        "intensity": false,
+        "strobe": false,
+        "movement": false,
+        "zones": 0
+      },
+      "fallback_group": "wash_all",
+      "fallback_intensity_scale": 0.70
+    },
+
+    "spots": {
+      "label": "Derby Effect",
+      "description": "One 2-channel derby/moonflower: motor speed on ch 1, colour on ch 2 (fixed colour wheel). No DMX colour mixing — colours are selected by DMX value ranges.",
+      "fixture_count": 1,
+      "fixtures": [
+        {
+          "id": "derby_1",
+          "type": "derby_effect",
+          "dmx_start": 13,
+          "channel_count": 2,
+          "channels": {
+            "motor_speed": 1,
+            "color_select": 2
+          },
+          "color_wheel": {
+            "0-31":   "blackout",
+            "32-63":  "red",
+            "64-95":  "green",
+            "96-127": "blue",
+            "128-159":"red_green",
+            "160-191":"red_blue",
+            "192-223":"green_blue",
+            "224-255":"all_colors"
+          },
+          "model_hint": "Generic 2-ch Derby / Moonflower Effect"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "color_wheel",
+        "color_mixing": false,
+        "intensity": false,
+        "intensity_range": null,
+        "strobe": false,
+        "movement": true,
+        "movement_type": "motor_rotation",
+        "pan_range_deg": null,
+        "tilt_range_deg": null,
+        "zones": 1
+      }
+    },
+
+    "moving_heads": {
+      "label": "Moving Heads (not available)",
+      "description": "No moving heads in this rig. All movement_enable cues are silently dropped by the constraint filter.",
+      "fixture_count": 0,
+      "fixtures": [],
+      "capabilities": {
+        "color": false,
+        "intensity": false,
+        "strobe": false,
+        "movement": false,
+        "zones": 0
+      },
+      "fallback_group": null
+    },
+
+    "strobe": {
+      "label": "LED Strobe",
+      "description": "Single compact LED strobe bar. Rate capped at 8 Hz per constraints.",
+      "fixture_count": 1,
+      "fixtures": [
+        {
+          "id": "strobe_1",
+          "type": "led_strobe",
+          "dmx_start": 15,
+          "channel_count": 2,
+          "channels": {
+            "intensity": 1,
+            "rate":      2
+          },
+          "model_hint": "Generic 2-ch LED Strobe"
+        }
+      ],
+      "capabilities": {
+        "color": false,
+        "color_model": null,
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": true,
+        "movement": false,
+        "zones": 1
+      }
+    }
+  },
+
+  "auxiliary": {},
+
+  "constraints": {
+    "movement_enable": false,
+    "max_simultaneous_moving_heads": 0,
+    "strobe_max_rate_hz": 8,
+    "strobe_blackout_during_movement": false,
+    "max_color_zones": 1,
+    "fog_enabled": false,
+    "haze_enabled": false,
+    "simultaneous_full_strobe_and_movement": false,
+    "drop_cue_types": ["movement_enable"],
+    "note": "movement_enable cues must be silently dropped — there are no moving heads. All colour operations are single-zone. back_wash cues fall through to wash_all at 70% scale. Derby motor is treated as a coarse movement proxy during drops only."
+  },
+
+  "dmx_channel_map": {
+    "1-6":   "wash_bar_l  (6-ch RGBAW+UV Wash Bar)",
+    "7-12":  "wash_bar_r  (6-ch RGBAW+UV Wash Bar)",
+    "13-14": "derby_1     (2-ch Derby Effect)",
+    "15-16": "strobe_1    (2-ch LED Strobe)"
+  },
+
+  "cue_rendering": {
+    "wash": "Both wash bars set to target colour via proportional channel scaling (no dimmer channel). Single zone only — L and R always match.",
+    "pulse": "Both bars scale all colour channels to peak_intensity * current_colour, then ramp back. Derby motor set to 40% speed during pulses to add texture without distraction.",
+    "strobe_hit": "strobe_1 fires at requested intensity, rate capped at 8 Hz. Wash bars briefly go full white (255,255,255,0,255,0) for one frame to reinforce the hit visually, then return to section colour.",
+    "color_shift": "Both wash bars crossfade to new colour. Derby color_select channel updated to nearest matching wheel position. No zones — colour is uniform.",
+    "movement_enable": "DROPPED — no moving heads. Derby motor speed is adjusted instead: intro/breakdown=slow (40), build=medium (120), drop=fast (220).",
+    "fade_out": "All channel values scaled linearly toward zero. Derby motor ramped to 0 over last 2 bars."
+  }
+}

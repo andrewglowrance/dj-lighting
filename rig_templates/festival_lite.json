@@ -1,0 +1,250 @@
+{
+  "_comment": "Festival Lite rig — 8 PARs, 2 LED battens, 4 moving head spots, 2 strobes, 2 haze. ~176 DMX channels across 1 universe.",
+  "id": "festival_lite",
+  "name": "Festival Lite",
+  "description": "Scaled-down festival-style rig suitable for a 500-1500 cap room or outdoor stage. Two LED pixel battens on front truss create horizon-level colour washes. Eight RGBW PARs provide front fill and overhead colour. Four moving head spots give beam movement and mid-air aerial effects. Two strobes and two haze machines complete the atmosphere. Four independently addressable colour zones allow section-level colour storytelling.",
+
+  "universe": 1,
+  "channel_budget": 180,
+
+  "fixture_groups": {
+    "wash_all": {
+      "label": "Front Wash PARs",
+      "description": "Eight 7-channel RGBW PARs split evenly across front truss, providing full-width even wash over the crowd.",
+      "fixture_count": 8,
+      "fixtures": [
+        { "id": "par_1", "type": "par_led_rgbw", "dmx_start": 1,  "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_2", "type": "par_led_rgbw", "dmx_start": 8,  "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_3", "type": "par_led_rgbw", "dmx_start": 15, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_4", "type": "par_led_rgbw", "dmx_start": 22, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_5", "type": "par_led_rgbw", "dmx_start": 29, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_6", "type": "par_led_rgbw", "dmx_start": 36, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_7", "type": "par_led_rgbw", "dmx_start": 43, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" },
+        { "id": "par_8", "type": "par_led_rgbw", "dmx_start": 50, "channel_count": 7, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"white":5,"strobe":6,"macro":7 }, "model_hint": "Generic 7-ch RGBW PAR" }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": false,
+        "zones": 2,
+        "zone_split": "left_4_right_4"
+      }
+    },
+
+    "back_wash": {
+      "label": "LED Pixel Battens",
+      "description": "Two 12-channel RGBW pixel battens mounted on front truss facing crowd, providing horizon-level colour wash and chase effects. Each batten addressed as a single 12-ch zone (4 RGBW sections).",
+      "fixture_count": 2,
+      "fixtures": [
+        {
+          "id": "batten_l",
+          "type": "led_batten_rgbw",
+          "dmx_start": 57,
+          "channel_count": 12,
+          "channels": {
+            "dimmer":    1,
+            "red":       2,
+            "green":     3,
+            "blue":      4,
+            "white":     5,
+            "strobe":    6,
+            "zone1_r":   7,
+            "zone1_g":   8,
+            "zone1_b":   9,
+            "zone2_r":   10,
+            "zone2_g":   11,
+            "zone2_b":   12
+          },
+          "model_hint": "Generic 12-ch RGBW Pixel Batten"
+        },
+        {
+          "id": "batten_r",
+          "type": "led_batten_rgbw",
+          "dmx_start": 69,
+          "channel_count": 12,
+          "channels": {
+            "dimmer":    1,
+            "red":       2,
+            "green":     3,
+            "blue":      4,
+            "white":     5,
+            "strobe":    6,
+            "zone1_r":   7,
+            "zone1_g":   8,
+            "zone1_b":   9,
+            "zone2_r":   10,
+            "zone2_g":   11,
+            "zone2_b":   12
+          },
+          "model_hint": "Generic 12-ch RGBW Pixel Batten"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": false,
+        "zones": 4,
+        "zone_split": "per_section"
+      }
+    },
+
+    "spots": {
+      "label": "Moving Head Spots — Colour Positions",
+      "description": "Outer two of the four moving head spots used as colour wash positions (slower, wider beams). Inner two act as dedicated beams (see moving_heads group).",
+      "fixture_count": 2,
+      "fixtures": [
+        {
+          "id": "mh_spot_1",
+          "type": "moving_head_spot_rgbw",
+          "dmx_start": 81,
+          "channel_count": 16,
+          "channels": {
+            "pan":        1,
+            "pan_fine":   2,
+            "tilt":       3,
+            "tilt_fine":  4,
+            "speed":      5,
+            "dimmer":     6,
+            "red":        7,
+            "green":      8,
+            "blue":       9,
+            "white":      10,
+            "color_wheel":11,
+            "gobo":       12,
+            "gobo_rot":   13,
+            "strobe":     14,
+            "focus":      15,
+            "mode":       16
+          },
+          "model_hint": "Generic 16-ch RGBW Moving Spot"
+        },
+        {
+          "id": "mh_spot_2",
+          "type": "moving_head_spot_rgbw",
+          "dmx_start": 97,
+          "channel_count": 16,
+          "channels": {
+            "pan":1,"pan_fine":2,"tilt":3,"tilt_fine":4,"speed":5,"dimmer":6,
+            "red":7,"green":8,"blue":9,"white":10,"color_wheel":11,"gobo":12,
+            "gobo_rot":13,"strobe":14,"focus":15,"mode":16
+          },
+          "model_hint": "Generic 16-ch RGBW Moving Spot"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": true,
+        "pan_range_deg": 540,
+        "tilt_range_deg": 270,
+        "zones": 2
+      }
+    },
+
+    "moving_heads": {
+      "label": "Moving Head Spots — Beam / Chase",
+      "description": "All four moving head spots addressed together for synchronized beam movement and aerial chase patterns.",
+      "fixture_count": 4,
+      "fixtures": [
+        { "id": "mh_spot_1", "type": "moving_head_spot_rgbw", "dmx_start": 81,  "channel_count": 16, "channels": { "pan":1,"pan_fine":2,"tilt":3,"tilt_fine":4,"speed":5,"dimmer":6,"red":7,"green":8,"blue":9,"white":10,"color_wheel":11,"gobo":12,"gobo_rot":13,"strobe":14,"focus":15,"mode":16 }, "model_hint": "Generic 16-ch RGBW Moving Spot" },
+        { "id": "mh_spot_2", "type": "moving_head_spot_rgbw", "dmx_start": 97,  "channel_count": 16, "channels": { "pan":1,"pan_fine":2,"tilt":3,"tilt_fine":4,"speed":5,"dimmer":6,"red":7,"green":8,"blue":9,"white":10,"color_wheel":11,"gobo":12,"gobo_rot":13,"strobe":14,"focus":15,"mode":16 }, "model_hint": "Generic 16-ch RGBW Moving Spot" },
+        { "id": "mh_spot_3", "type": "moving_head_spot_rgbw", "dmx_start": 113, "channel_count": 16, "channels": { "pan":1,"pan_fine":2,"tilt":3,"tilt_fine":4,"speed":5,"dimmer":6,"red":7,"green":8,"blue":9,"white":10,"color_wheel":11,"gobo":12,"gobo_rot":13,"strobe":14,"focus":15,"mode":16 }, "model_hint": "Generic 16-ch RGBW Moving Spot" },
+        { "id": "mh_spot_4", "type": "moving_head_spot_rgbw", "dmx_start": 129, "channel_count": 16, "channels": { "pan":1,"pan_fine":2,"tilt":3,"tilt_fine":4,"speed":5,"dimmer":6,"red":7,"green":8,"blue":9,"white":10,"color_wheel":11,"gobo":12,"gobo_rot":13,"strobe":14,"focus":15,"mode":16 }, "model_hint": "Generic 16-ch RGBW Moving Spot" }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": true,
+        "pan_range_deg": 540,
+        "tilt_range_deg": 270,
+        "zones": 4,
+        "zone_split": "pair_lr"
+      }
+    },
+
+    "strobe": {
+      "label": "LED Strobes",
+      "description": "Two high-output LED strobe bars on front truss, one left and one right of centre.",
+      "fixture_count": 2,
+      "fixtures": [
+        { "id": "strobe_1", "type": "led_strobe", "dmx_start": 145, "channel_count": 2, "channels": { "intensity":1, "rate":2 }, "model_hint": "Generic 2-ch LED Strobe" },
+        { "id": "strobe_2", "type": "led_strobe", "dmx_start": 147, "channel_count": 2, "channels": { "intensity":1, "rate":2 }, "model_hint": "Generic 2-ch LED Strobe" }
+      ],
+      "capabilities": {
+        "color": false,
+        "color_model": null,
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": true,
+        "movement": false,
+        "zones": 2
+      }
+    }
+  },
+
+  "auxiliary": {
+    "haze_l": {
+      "id": "haze_1",
+      "type": "haze_machine",
+      "dmx_start": 149,
+      "channel_count": 1,
+      "channels": { "output": 1 },
+      "model_hint": "Generic 1-ch Haze Machine"
+    },
+    "haze_r": {
+      "id": "haze_2",
+      "type": "haze_machine",
+      "dmx_start": 150,
+      "channel_count": 1,
+      "channels": { "output": 1 },
+      "model_hint": "Generic 1-ch Haze Machine"
+    }
+  },
+
+  "constraints": {
+    "movement_enable": true,
+    "max_simultaneous_moving_heads": 4,
+    "strobe_max_rate_hz": 20,
+    "strobe_blackout_during_movement": false,
+    "max_color_zones": 4,
+    "fog_enabled": false,
+    "haze_enabled": true,
+    "simultaneous_full_strobe_and_movement": true,
+    "note": "Full rig — all cue types and all groups are active. Moving heads can run at full speed during strobes. Zones allow front vs back and left vs right differentiation."
+  },
+
+  "dmx_channel_map": {
+    "1-56":    "par_1..8        (8x 7-ch RGBW PARs)",
+    "57-68":   "batten_l        (12-ch RGBW Batten)",
+    "69-80":   "batten_r        (12-ch RGBW Batten)",
+    "81-96":   "mh_spot_1       (16-ch Moving Spot)",
+    "97-112":  "mh_spot_2       (16-ch Moving Spot)",
+    "113-128": "mh_spot_3       (16-ch Moving Spot)",
+    "129-144": "mh_spot_4       (16-ch Moving Spot)",
+    "145-146": "strobe_1        (2-ch LED Strobe)",
+    "147-148": "strobe_2        (2-ch LED Strobe)",
+    "149":     "haze_1          (1-ch Haze)",
+    "150":     "haze_2          (1-ch Haze)"
+  },
+
+  "cue_rendering": {
+    "wash": "All 8 PARs and both battens set to target colour. Battens may carry complementary colour for depth. Moving heads set to match or contrast.",
+    "pulse": "All 8 PARs bump to peak intensity. Battens run a left-to-right chase within the beat window at half the beat duration. Moving head dimmers follow at 80% of wash intensity.",
+    "strobe_hit": "Both strobes fire simultaneously at full intensity. All PARs and battens drop to 20% during burst (strobe dominance). Moving head dimmers to 50%.",
+    "color_shift": "All four colour zones transition simultaneously. Zone 1 (PARs left), Zone 2 (PARs right), Zone 3 (battens), Zone 4 (moving heads) can each carry a different palette step.",
+    "movement_enable": "All four moving heads execute synchronized pattern at requested speed. During build: slow fan pattern. During drop: fast circular or cross-fire. During breakdown: slow drift.",
+    "fade_out": "All groups ramp to target_intensity linearly. Haze machines ramp down with the intensity (reduce output to avoid thick haze in low-light outro)."
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "_comment": "Small Club rig — 4 PAR LED cans, 1 moving head wash, 1 strobe, 1 fog. ~47 DMX channels.",
+  "id": "small_club",
+  "name": "Small Club",
+  "description": "Compact venue rig typical of a 200-cap club. Two front-facing wash PARs, two back/side PARs for rear fill and silhouette, one moving head wash for beam movement, one strobe, and a fog machine. Limited channel budget keeps patching simple in QLC+. Maximum two independently controlled color zones at any time.",
+
+  "universe": 1,
+  "channel_budget": 48,
+
+  "fixture_groups": {
+    "wash_all": {
+      "label": "Front Wash",
+      "description": "Two RGBW PAR cans aimed at the dance floor from front truss or stand.",
+      "fixture_count": 2,
+      "fixtures": [
+        {
+          "id": "par_wash_l",
+          "type": "par_led_rgbw",
+          "dmx_start": 1,
+          "channel_count": 7,
+          "channels": {
+            "dimmer":  1,
+            "red":     2,
+            "green":   3,
+            "blue":    4,
+            "white":   5,
+            "strobe":  6,
+            "macro":   7
+          },
+          "model_hint": "Generic 7-ch RGBW PAR"
+        },
+        {
+          "id": "par_wash_r",
+          "type": "par_led_rgbw",
+          "dmx_start": 8,
+          "channel_count": 7,
+          "channels": {
+            "dimmer":  1,
+            "red":     2,
+            "green":   3,
+            "blue":    4,
+            "white":   5,
+            "strobe":  6,
+            "macro":   7
+          },
+          "model_hint": "Generic 7-ch RGBW PAR"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": false,
+        "zones": 1
+      }
+    },
+
+    "back_wash": {
+      "label": "Back / Side Fill",
+      "description": "Two RGBW PARs on rear truss or floor stands, aimed toward performers / booth for silhouette and rear fill.",
+      "fixture_count": 2,
+      "fixtures": [
+        {
+          "id": "par_back_l",
+          "type": "par_led_rgbw",
+          "dmx_start": 15,
+          "channel_count": 7,
+          "channels": {
+            "dimmer":  1,
+            "red":     2,
+            "green":   3,
+            "blue":    4,
+            "white":   5,
+            "strobe":  6,
+            "macro":   7
+          },
+          "model_hint": "Generic 7-ch RGBW PAR"
+        },
+        {
+          "id": "par_back_r",
+          "type": "par_led_rgbw",
+          "dmx_start": 22,
+          "channel_count": 7,
+          "channels": {
+            "dimmer":  1,
+            "red":     2,
+            "green":   3,
+            "blue":    4,
+            "white":   5,
+            "strobe":  6,
+            "macro":   7
+          },
+          "model_hint": "Generic 7-ch RGBW PAR"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": false,
+        "zones": 1
+      }
+    },
+
+    "moving_heads": {
+      "label": "Moving Head Wash",
+      "description": "Single 15-channel RGBW moving head wash. Provides beam movement and mid-air colour mixing above the floor.",
+      "fixture_count": 1,
+      "fixtures": [
+        {
+          "id": "mh_wash_1",
+          "type": "moving_head_wash_rgbw",
+          "dmx_start": 29,
+          "channel_count": 15,
+          "channels": {
+            "pan":       1,
+            "pan_fine":  2,
+            "tilt":      3,
+            "tilt_fine": 4,
+            "speed":     5,
+            "dimmer":    6,
+            "red":       7,
+            "green":     8,
+            "blue":      9,
+            "white":     10,
+            "color_macro": 11,
+            "strobe":    12,
+            "zoom":      13,
+            "auto_mode": 14,
+            "reset":     15
+          },
+          "model_hint": "Generic 15-ch RGBW Moving Wash"
+        }
+      ],
+      "capabilities": {
+        "color": true,
+        "color_model": "RGBW",
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": false,
+        "movement": true,
+        "pan_range_deg": 540,
+        "tilt_range_deg": 270,
+        "zones": 1
+      }
+    },
+
+    "strobe": {
+      "label": "Strobe",
+      "description": "Single LED strobe bar mounted above the dance floor.",
+      "fixture_count": 1,
+      "fixtures": [
+        {
+          "id": "strobe_1",
+          "type": "led_strobe",
+          "dmx_start": 44,
+          "channel_count": 2,
+          "channels": {
+            "intensity": 1,
+            "rate":      2
+          },
+          "model_hint": "Generic 2-ch LED Strobe"
+        }
+      ],
+      "capabilities": {
+        "color": false,
+        "color_model": null,
+        "intensity": true,
+        "intensity_range": [0, 255],
+        "strobe": true,
+        "movement": false,
+        "zones": 1
+      }
+    },
+
+    "spots": {
+      "label": "Spots",
+      "description": "No dedicated spots in this rig. The moving head wash doubles as a spot. Cues targeting this group fall through to wash_all.",
+      "fixture_count": 0,
+      "fixtures": [],
+      "capabilities": {
+        "color": false,
+        "intensity": false,
+        "strobe": false,
+        "movement": false,
+        "zones": 0
+      },
+      "fallback_group": "wash_all"
+    }
+  },
+
+  "auxiliary": {
+    "fog": {
+      "id": "fog_1",
+      "type": "fog_machine",
+      "dmx_start": 46,
+      "channel_count": 1,
+      "channels": { "output": 1 },
+      "model_hint": "Generic 1-ch Fog Machine"
+    }
+  },
+
+  "constraints": {
+    "movement_enable": true,
+    "max_simultaneous_moving_heads": 1,
+    "strobe_max_rate_hz": 10,
+    "strobe_blackout_during_movement": false,
+    "max_color_zones": 2,
+    "fog_enabled": true,
+    "haze_enabled": false,
+    "simultaneous_full_strobe_and_movement": false,
+    "note": "With only one moving head, avoid running fast pan + full-intensity strobe simultaneously — the moving head dimmer should drop to 40% during strobe bursts to prevent visual clutter."
+  },
+
+  "dmx_channel_map": {
+    "1-7":   "par_wash_l    (RGBW PAR)",
+    "8-14":  "par_wash_r    (RGBW PAR)",
+    "15-21": "par_back_l    (RGBW PAR)",
+    "22-28": "par_back_r    (RGBW PAR)",
+    "29-43": "mh_wash_1     (Moving Head Wash, 15ch)",
+    "44-45": "strobe_1      (LED Strobe, 2ch)",
+    "46":    "fog_1         (Fog Machine, 1ch)"
+  },
+
+  "cue_rendering": {
+    "wash": "All four PARs set to target colour at target intensity. Moving head matches colour. Single-zone result.",
+    "pulse": "Both front PARs bump to peak intensity for duration; back PARs stay at 60% of front level to preserve rear fill.",
+    "strobe_hit": "strobe_1 fires at requested intensity. Front PARs and moving head dimmer drop to 30% during burst to let strobe read clearly.",
+    "color_shift": "All four PARs and moving head snap or fade to new colour together. With max_color_zones=2, front PARs get primary colour, back PARs get complementary.",
+    "movement_enable": "mh_wash_1 executes requested pattern at requested speed. Only one moving head so pattern is simple arc or figure-8.",
+    "fade_out": "All groups ramp dimmer to target_intensity over fade_time. Moving head speed set to 0 during full blackout."
+  }
+}

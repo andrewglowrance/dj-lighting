@@ -1,0 +1,17 @@
+# Core API
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9    # required for FastAPI file uploads
+
+# Audio analysis
+librosa==0.10.2
+numpy==1.26.4
+scipy==1.13.0
+soundfile==0.12.1          # fast WAV/FLAC loading; fallback for librosa
+audioread==3.0.1           # MP3 fallback decoder
+
+# Data validation
+pydantic==2.7.0
+
+# Utilities
+python-dotenv==1.0.1
