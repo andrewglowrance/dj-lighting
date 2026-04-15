@@ -19,7 +19,7 @@ from fastapi import APIRouter
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from backend.lighting.dmx_formatter import cues_to_qlcplus_xml
+from backend.lighting.dmx_formatter import cues_to_qlcplus_zip
 from backend.schemas.cues import CueOutputSchema
 
 
@@ -39,12 +39,13 @@ def export_cues(request: ExportRequest) -> Response:
     fmt = request.format.lower().strip()
 
     if fmt == "qlcplus":
-        xml_str = cues_to_qlcplus_xml(request.cues)
+        # Returns a ZIP containing cueforge_show.qxw + CueForge--GenericRGB.qxf
+        zip_bytes = cues_to_qlcplus_zip(request.cues)
         return Response(
-            content=xml_str.encode("utf-8"),
-            media_type="application/xml",
+            content=zip_bytes,
+            media_type="application/zip",
             headers={
-                "Content-Disposition": 'attachment; filename="cueforge_show.qxw"'
+                "Content-Disposition": 'attachment; filename="cueforge_show.zip"'
             },
         )
 
