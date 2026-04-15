@@ -20,7 +20,6 @@ where each component is clamped to [0, 1].
 
 from __future__ import annotations
 
-import librosa
 import numpy as np
 
 from backend.schemas.timeline import Bar, DropCandidate, Section
@@ -54,6 +53,8 @@ def find_drop_candidates(
     """
     if not sections:
         return []
+
+    import librosa
 
     # Pre-compute frame-level features once
     rms_frames = librosa.feature.rms(y=y, hop_length=_HOP_LENGTH)[0]

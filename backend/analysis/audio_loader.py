@@ -15,7 +15,6 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-import librosa
 import numpy as np
 import soundfile as sf
 
@@ -46,7 +45,8 @@ def load_audio(filepath: str) -> tuple[np.ndarray, int]:
             # mix down to mono
             y = y.mean(axis=1)
     else:
-        # librosa handles MP3 via audioread; converts to mono automatically
+        # librosa handles MP3 via audioread; import here to defer heavy load
+        import librosa
         y, sr = librosa.load(filepath, sr=None, mono=True, dtype=np.float32)
 
     # Safety: ensure finite values only (damaged files can have NaN/inf)

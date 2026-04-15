@@ -13,7 +13,6 @@ indicates the tracker is certain; a flat peak indicates ambiguity.
 
 from __future__ import annotations
 
-import librosa
 import numpy as np
 
 from backend.schemas.timeline import BPMInfo
@@ -28,6 +27,7 @@ _HOP_LENGTH = 512   # frames hop; ~11.6 ms at 44100 Hz
 # ---------------------------------------------------------------------------
 
 def detect_beats(y: np.ndarray, sr: int) -> tuple[BPMInfo, np.ndarray]:
+    import librosa
     """
     Estimate BPM and detect beat onset times.
 
@@ -72,6 +72,7 @@ def detect_beats(y: np.ndarray, sr: int) -> tuple[BPMInfo, np.ndarray]:
 # ---------------------------------------------------------------------------
 
 def _tempo_confidence(onset_env: np.ndarray, sr: int) -> float:
+    import librosa
     """
     Estimate confidence as the normalized height of the dominant tempo peak
     in the tempogram autocorrelation.

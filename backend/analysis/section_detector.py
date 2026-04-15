@@ -25,7 +25,6 @@ threshold constants at the top of this file.
 
 from __future__ import annotations
 
-import librosa
 import numpy as np
 
 from backend.schemas.timeline import Bar, Section, SectionLabel
@@ -78,6 +77,7 @@ def detect_sections(y: np.ndarray, sr: int, bars: list[Bar]) -> list[Section]:
 def _compute_bar_features(
     y: np.ndarray, sr: int, bars: list[Bar]
 ) -> tuple[np.ndarray, np.ndarray]:
+    import librosa
     """
     For each bar compute:
       - mean RMS energy (raw amplitude, not dB)
