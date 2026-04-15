@@ -15,6 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.api.routes.analyze import router as analyze_router
 from backend.api.routes.export import router as export_router
 from backend.api.routes.templates import router as templates_router
+from backend.api.routes.visualizer import router as visualizer_router
 
 app = FastAPI(
     title="DJ Lighting — Phase 1",
@@ -36,6 +37,7 @@ app.add_middleware(
 app.include_router(analyze_router, prefix="/api")
 app.include_router(templates_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
+app.include_router(visualizer_router, prefix="/api")
 
 
 @app.get("/api/health")

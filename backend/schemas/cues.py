@@ -23,6 +23,11 @@ CueType = Literal[
     "color_shift",    # Snap or transition to a new color
     "movement_enable",# Enable/configure moving-head motion
     "fade_out",       # Ramp intensity down to a target level
+    # --- Laser cue types ---
+    "laser_static",   # Hold a fixed fan or beam at set angle and color
+    "laser_scan",     # Single beam or narrow fan sweeping left↔right
+    "laser_chase",    # Multiple beams firing in rapid alternating sequence
+    "laser_off",      # Cut all laser output immediately
 ]
 
 # All valid abstract fixture group names.
@@ -33,6 +38,7 @@ TargetGroup = Literal[
     "moving_heads",
     "strobe",
     "back_wash",
+    "lasers",         # RGB or single-colour laser fixtures
 ]
 
 

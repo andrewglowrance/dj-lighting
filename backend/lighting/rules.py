@@ -37,6 +37,29 @@ fade_out:
     target_intensity: float  – [0, 1] target level (0 = full black)
     fade_time: float         – seconds (optional)
     color: str               – (optional) color during fade
+
+laser_static:
+    color: str               – laser palette key (laser_green, laser_red, etc.)
+    pattern: str             – "fan" | "single" | "x_cross"
+    fan_count: int           – number of beams in fan (2-8, default 5)
+    spread_deg: float        – total fan spread in degrees (default 60)
+    intensity: float         – [0, 1]
+
+laser_scan:
+    color: str
+    speed: float             – scan speed [0, 1], 0=stopped, 1=full speed
+    fan_count: int           – beams in the scan group (1-3, default 1)
+    spread_deg: float        – spread of scan group (default 20)
+    intensity: float
+
+laser_chase:
+    colors: list[str]        – palette keys cycling per step
+    beam_count: int          – total beams (default 4)
+    step_beats: float        – how many beats per color step (default 0.5)
+    intensity: float
+
+laser_off:
+    (no parameters)
 """
 
 from __future__ import annotations
@@ -47,6 +70,14 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 COLORS: dict[str, tuple[int, int, int]] = {
+    # Laser palette — pure saturated wavelengths, no mixing
+    "laser_green":     (0,   255, 0),
+    "laser_red":       (255, 0,   0),
+    "laser_blue":      (30,  80,  255),
+    "laser_white":     (255, 255, 255),
+    "laser_cyan":      (0,   255, 220),
+    "laser_yellow":    (255, 220, 0),
+    # Wash palette
     "cool_blue":       (0,   80,  255),
     "warm_amber":      (255, 120, 0),
     "deep_purple":     (80,  0,   200),
@@ -69,11 +100,12 @@ BUILD_COLOR_CYCLE: list[str] = ["warm_amber", "build_orange", "deep_purple"]
 # Rig-template mapping (Phase 2) resolves these strings to physical fixtures
 # and DMX channels. The cue engine never mentions specific fixtures.
 
-GROUP_WASH_ALL = "wash_all"
-GROUP_SPOTS = "spots"
-GROUP_MOVING_HEADS = "moving_heads"
-GROUP_STROBE = "strobe"
-GROUP_BACK_WASH = "back_wash"
+GROUP_WASH_ALL    = "wash_all"
+GROUP_SPOTS       = "spots"
+GROUP_MOVING_HEADS= "moving_heads"
+GROUP_STROBE      = "strobe"
+GROUP_BACK_WASH   = "back_wash"
+GROUP_LASERS      = "lasers"
 
 
 # ---------------------------------------------------------------------------
@@ -103,7 +135,6 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "intro": [
-        # Section start: set all wash fixtures to a low-intensity cool wash
         {
             "trigger":       "section_start",
             "cue_type":      "wash",
@@ -111,7 +142,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_sec":  4.0,
             "params": {"color": "cool_blue", "intensity": 0.30, "fade_in": 2.0},
         },
-        # Every bar (beat 1): gentle pulse to indicate energy without strobing
         {
             "trigger":        "bar_beat_1",
             "cue_type":       "pulse",
@@ -119,11 +149,18 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "cool_blue", "intensity": 0.40},
         },
+        # Lasers OFF — reserve impact for the drop
+        {
+            "trigger":       "section_start",
+            "cue_type":      "laser_off",
+            "target_groups": [GROUP_LASERS],
+            "duration_sec":  4.0,
+            "params": {},
+        },
     ],
 
     # -----------------------------------------------------------------------
     "build": [
-        # Enable moving heads at moderate speed as section starts
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
@@ -131,8 +168,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 0.40, "pattern": "sweep"},
         },
-        # Every beat: intensity linearly ramps from 0.40 → 0.90 over the section.
-        # cue_engine computes per-beat intensity from section progress.
         {
             "trigger":        "beat",
             "cue_type":       "pulse",
@@ -142,21 +177,16 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "color":           "warm_amber",
                 "intensity_start": 0.40,
                 "intensity_end":   0.90,
-                "_ramp":           True,  # engine reads this flag to compute per-beat intensity
+                "_ramp":           True,
             },
         },
-        # Color shift every 4 bars; color cycles through BUILD_COLOR_CYCLE
         {
             "trigger":        "bar_4_beat_1",
             "cue_type":       "color_shift",
             "target_groups":  [GROUP_WASH_ALL],
             "duration_beats": 0.25,
-            "params": {
-                "color":       "_build_cycle",  # engine resolves this dynamically
-                "transition":  "snap",
-            },
+            "params": {"color": "_build_cycle", "transition": "snap"},
         },
-        # Final 4 bars: strobe hit on beat 1 and beat 3 to build tension
         {
             "trigger":        "build_last4",
             "cue_type":       "strobe_hit",
@@ -164,7 +194,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.125,
             "params": {"intensity": 1.0},
         },
-        # Very last beat before the drop: white flash on all groups
         {
             "trigger":        "pre_drop",
             "cue_type":       "color_shift",
@@ -172,11 +201,52 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "pure_white", "transition": "snap"},
         },
+        # Laser: slow single-beam scan in green, ramps speed with section
+        {
+            "trigger":        "section_start",
+            "cue_type":       "laser_scan",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 4.0,
+            "params": {
+                "color":      "laser_green",
+                "speed":      0.25,
+                "fan_count":  1,
+                "spread_deg": 10,
+                "intensity":  0.60,
+            },
+        },
+        # Last 4 bars: widen to 3-beam scan, speed up
+        {
+            "trigger":        "build_last4",
+            "cue_type":       "laser_scan",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 1.0,
+            "params": {
+                "color":      "laser_cyan",
+                "speed":      0.70,
+                "fan_count":  3,
+                "spread_deg": 30,
+                "intensity":  0.85,
+            },
+        },
+        # Pre-drop: laser snaps to white static fan — anticipation hit
+        {
+            "trigger":        "pre_drop",
+            "cue_type":       "laser_static",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 0.25,
+            "params": {
+                "color":      "laser_white",
+                "pattern":    "fan",
+                "fan_count":  5,
+                "spread_deg": 60,
+                "intensity":  1.0,
+            },
+        },
     ],
 
     # -----------------------------------------------------------------------
     "drop": [
-        # Opening hit: simultaneous strobe burst + color to drop_red
         {
             "trigger":        "section_start",
             "cue_type":       "strobe_hit",
@@ -191,7 +261,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"color": "drop_red", "transition": "snap"},
         },
-        # Every beat: front wash pulse at 90%
         {
             "trigger":        "beat",
             "cue_type":       "pulse",
@@ -199,7 +268,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.50,
             "params": {"color": "drop_red", "intensity": 0.90},
         },
-        # Beat 2 and 4 of every bar: back wash counter-punch
         {
             "trigger":        "beat_2_4",
             "cue_type":       "pulse",
@@ -207,18 +275,13 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.50,
             "params": {"color": "drop_yellow", "intensity": 0.80},
         },
-        # Every 2 bars: cycle through drop colors on wash + spots
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "color_shift",
             "target_groups":  [GROUP_WASH_ALL, GROUP_SPOTS],
             "duration_beats": 0.25,
-            "params": {
-                "color":       "_drop_cycle",  # engine resolves dynamically
-                "transition":  "snap",
-            },
+            "params": {"color": "_drop_cycle", "transition": "snap"},
         },
-        # Every 4 bars: moving heads kick to full-speed pan
         {
             "trigger":        "bar_4_beat_1",
             "cue_type":       "movement_enable",
@@ -226,11 +289,50 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 1.0, "pattern": "fast_pan"},
         },
+        # Laser: full RGB chase at section start — maximum impact
+        {
+            "trigger":        "section_start",
+            "cue_type":       "laser_chase",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 4.0,
+            "params": {
+                "colors":      ["laser_red", "laser_green", "laser_blue", "laser_white"],
+                "beam_count":  6,
+                "step_beats":  0.25,
+                "intensity":   1.0,
+            },
+        },
+        # Every 2 bars: alternate between chase and full fan
+        {
+            "trigger":        "bar_2_beat_1",
+            "cue_type":       "laser_static",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 4.0,
+            "params": {
+                "color":      "laser_red",
+                "pattern":    "x_cross",
+                "fan_count":  6,
+                "spread_deg": 80,
+                "intensity":  1.0,
+            },
+        },
+        # Every 4 bars: back to RGB chase
+        {
+            "trigger":        "bar_4_beat_1",
+            "cue_type":       "laser_chase",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 8.0,
+            "params": {
+                "colors":      ["laser_red", "laser_yellow", "laser_green", "laser_cyan", "laser_blue", "laser_white"],
+                "beam_count":  6,
+                "step_beats":  0.5,
+                "intensity":   1.0,
+            },
+        },
     ],
 
     # -----------------------------------------------------------------------
     "breakdown": [
-        # Immediate fade to near-black
         {
             "trigger":       "section_start",
             "cue_type":      "fade_out",
@@ -238,7 +340,6 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_sec":  2.0,
             "params": {"target_intensity": 0.15, "fade_time": 2.0},
         },
-        # Slow movement on moving heads
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
@@ -246,19 +347,31 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 0.15, "pattern": "slow_drift"},
         },
-        # Every 2 bars: single slow wash
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "wash",
             "target_groups":  [GROUP_WASH_ALL],
-            "duration_beats": 8.0,  # holds for 2 bars
+            "duration_beats": 8.0,
             "params": {"color": "breakdown_teal", "intensity": 0.20, "fade_in": 1.5},
+        },
+        # Laser: single static beam, low intensity — atmospheric hold
+        {
+            "trigger":       "section_start",
+            "cue_type":      "laser_static",
+            "target_groups": [GROUP_LASERS],
+            "duration_sec":  4.0,
+            "params": {
+                "color":      "laser_blue",
+                "pattern":    "single",
+                "fan_count":  1,
+                "spread_deg": 0,
+                "intensity":  0.30,
+            },
         },
     ],
 
     # -----------------------------------------------------------------------
     "outro": [
-        # Slow down movement at section start
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
@@ -266,19 +379,38 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 0.10, "pattern": "slow_drift"},
         },
-        # Each bar: fade_out with linearly decreasing intensity (0.40 → 0.0).
-        # Engine computes per-bar intensity from bar position within section.
         {
             "trigger":        "bar_beat_1",
             "cue_type":       "fade_out",
             "target_groups":  [GROUP_WASH_ALL, GROUP_SPOTS, GROUP_BACK_WASH],
             "duration_beats": 4.0,
             "params": {
-                "color":              "outro_blue",
-                "intensity_start":    0.40,
-                "intensity_end":      0.0,
-                "_linear_fade":       True,  # engine computes per-bar intensity
+                "color":           "outro_blue",
+                "intensity_start": 0.40,
+                "intensity_end":   0.0,
+                "_linear_fade":    True,
             },
+        },
+        # Laser fades out with the rest of the rig
+        {
+            "trigger":        "section_start",
+            "cue_type":       "laser_scan",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 4.0,
+            "params": {
+                "color":      "laser_blue",
+                "speed":      0.10,
+                "fan_count":  1,
+                "spread_deg": 10,
+                "intensity":  0.20,
+            },
+        },
+        {
+            "trigger":        "bar_beat_1",
+            "cue_type":       "laser_off",
+            "target_groups":  [GROUP_LASERS],
+            "duration_beats": 4.0,
+            "params": {},
         },
     ],
 }
