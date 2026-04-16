@@ -6,13 +6,14 @@ Single public entry point for Phase 1 audio analysis.
 Call analyze_track(filepath) → TimelineSchema.
 
 Execution order:
-  1. audio_loader.load_audio          – load file to float32 array
-  2. audio_loader.get_metadata        – filename, duration, sample_rate
-  3. beat_tracker.detect_beats        – BPM, confidence, beat_times array
-  4. bar_builder.build_bars           – Beat and Bar schema objects
-  5. section_detector.detect_sections – Section objects with labels
+  1. audio_loader.load_audio            – load file to float32 array
+  2. audio_loader.get_metadata          – filename, duration, sample_rate
+  3. beat_tracker.detect_beats          – BPM, confidence, beat_times array
+  4. bar_builder.build_bars             – Beat and Bar schema objects
+  5. section_detector.detect_sections   – Section objects with labels
   6. drop_detector.find_drop_candidates – DropCandidate objects
-  7. Assemble and return TimelineSchema
+  7. mood_analyzer.analyze_mood         – key, mode, emotion, color_bias
+  8. Assemble and return TimelineSchema
 
 This module intentionally contains no analysis logic; it only wires modules
 together. Keep it that way so each stage can be tested in isolation.
@@ -24,8 +25,9 @@ from backend.analysis.audio_loader import get_metadata, load_audio
 from backend.analysis.bar_builder import build_bars
 from backend.analysis.beat_tracker import detect_beats
 from backend.analysis.drop_detector import find_drop_candidates
+from backend.analysis.mood_analyzer import analyze_mood
 from backend.analysis.section_detector import detect_sections
-from backend.schemas.timeline import TimelineSchema
+from backend.schemas.timeline import MoodAnalysis, TimelineSchema
 
 
 def analyze_track(filepath: str) -> TimelineSchema:
@@ -58,7 +60,11 @@ def analyze_track(filepath: str) -> TimelineSchema:
     # 6 – drop candidates
     drop_candidates = find_drop_candidates(y, sr, sections, bars)
 
-    # 7 – assemble
+    # 7 – mood / key / emotion analysis
+    mood_raw = analyze_mood(y, sr, bpm=bpm_info.bpm)
+    mood = MoodAnalysis(**mood_raw)
+
+    # 8 – assemble
     return TimelineSchema(
         metadata=metadata,
         bpm=bpm_info,
@@ -66,4 +72,5 @@ def analyze_track(filepath: str) -> TimelineSchema:
         bars=bars,
         sections=sections,
         drop_candidates=drop_candidates,
+        mood=mood,
     )

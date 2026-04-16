@@ -12,11 +12,12 @@ Coordinate system (right-hand, Y-up):
 Each fixture entry:
   id          str    matches the fixture id in the rig template JSON
   group       str    abstract group name (wash_all, moving_heads, etc.)
-  type        str    rendering hint: par | moving_head | strobe | batten | derby
+  type        str    rendering hint: par | moving_head | strobe | batten | derby | laser_rgb
   position    [x,y,z] 3D mount position in metres
   aim         [x,y,z] default aim direction vector (normalised in frontend)
-  beam_angle  float  cone half-angle in degrees (lasers: razor-thin, typically 1-2°)
+  beam_angle  float  cone half-angle in degrees (lasers: razor-thin, 1-2°)
   scan_angle  float  (laser_rgb only) maximum sweep half-angle in degrees
+  beam_length float  (laser_rgb only) how far in metres the beam travels before fading
   label       str    display label
 """
 
@@ -39,7 +40,9 @@ LAYOUTS: dict[str, dict] = {
             {"id": "par_back_r",  "group": "back_wash",    "type": "par",          "position": [ 1.5, 4.0, -3.5], "aim": [ 0.0, -1.0,  0.6], "beam_angle": 25, "label": "Back R"},
             {"id": "mh_wash_1",   "group": "moving_heads", "type": "moving_head",  "position": [ 0.0, 4.0, -1.0], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 14, "label": "MH Wash"},
             {"id": "strobe_1",    "group": "strobe",       "type": "strobe",       "position": [ 0.0, 4.0,  0.3], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 65, "label": "Strobe"},
-            {"id": "laser_1",     "group": "lasers",       "type": "laser_rgb",    "position": [ 0.0, 3.8, -0.5], "aim": [ 0.0, -1.0,  0.3], "beam_angle": 2,  "scan_angle": 45, "label": "RGB Laser"},
+            # 1 centre RGB laser — realistic single-unit small club install
+            # Aimed slightly forward so beams travel over the crowd, not into ceiling
+            {"id": "laser_1",     "group": "lasers",       "type": "laser_rgb",    "position": [ 0.0, 3.9, -0.8], "aim": [ 0.0, -0.4,  1.0], "beam_angle": 1,  "scan_angle": 45, "beam_length": 8.0,  "label": "RGB Laser"},
         ],
     },
 
@@ -76,9 +79,13 @@ LAYOUTS: dict[str, dict] = {
             # 2 strobes — front truss
             {"id": "strobe_1", "group": "strobe", "type": "strobe", "position": [-2.0, 8.0, -0.5], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 68, "label": "Strobe L"},
             {"id": "strobe_2", "group": "strobe", "type": "strobe", "position": [ 2.0, 8.0, -0.5], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 68, "label": "Strobe R"},
-            # 2 RGB lasers — rear truss, aimed toward audience
-            {"id": "laser_1",  "group": "lasers", "type": "laser_rgb", "position": [-3.0, 8.0, -5.0], "aim": [ 0.3, -0.8,  1.0], "beam_angle": 2,  "scan_angle": 60, "label": "Laser L"},
-            {"id": "laser_2",  "group": "lasers", "type": "laser_rgb", "position": [ 3.0, 8.0, -5.0], "aim": [-0.3, -0.8,  1.0], "beam_angle": 2,  "scan_angle": 60, "label": "Laser R"},
+            # ── Festival laser array ──────────────────────────────────────────
+            # 2 high-power RGB units on rear truss, aimed toward the audience.
+            # Wide scan angle for classic festival "laser sky" effect.
+            {"id": "laser_1",  "group": "lasers", "type": "laser_rgb", "position": [-4.0, 8.0, -5.0], "aim": [ 0.25, -0.3,  1.0], "beam_angle": 1,  "scan_angle": 70, "beam_length": 20.0, "label": "Laser L"},
+            {"id": "laser_2",  "group": "lasers", "type": "laser_rgb", "position": [ 4.0, 8.0, -5.0], "aim": [-0.25, -0.3,  1.0], "beam_angle": 1,  "scan_angle": 70, "beam_length": 20.0, "label": "Laser R"},
+            # 1 centre unit on front truss for aerial fan / x-cross patterns
+            {"id": "laser_3",  "group": "lasers", "type": "laser_rgb", "position": [ 0.0, 8.0, -1.5], "aim": [ 0.0,  -0.5,  0.5], "beam_angle": 1,  "scan_angle": 55, "beam_length": 15.0, "label": "Laser C"},
         ],
     },
 
@@ -95,7 +102,10 @@ LAYOUTS: dict[str, dict] = {
             {"id": "wash_bar_r", "group": "wash_all",  "type": "batten",       "position": [ 1.2, 2.5,  0.0], "aim": [ 0.0, -1.0,  0.5], "beam_angle": 55, "label": "Wash R"},
             {"id": "derby_1",    "group": "spots",     "type": "derby",        "position": [ 0.0, 2.5,  0.0], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 18, "label": "Derby"},
             {"id": "strobe_1",   "group": "strobe",    "type": "strobe",       "position": [ 0.0, 2.5,  0.4], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 62, "label": "Strobe"},
-            {"id": "laser_1",    "group": "lasers",    "type": "laser_rgb",    "position": [ 0.0, 2.4,  0.5], "aim": [ 0.0, -1.0,  0.2], "beam_angle": 2,  "scan_angle": 30, "label": "Laser"},
+            # 1 compact RGB laser — typical mobile DJ add-on unit.
+            # Narrower scan angle reflects a lower-power fixture;
+            # aimed slightly forward so beams cross the dancefloor not the ceiling.
+            {"id": "laser_1",    "group": "lasers",    "type": "laser_rgb",    "position": [ 0.0, 2.3,  0.3], "aim": [ 0.0, -0.5,  1.0], "beam_angle": 1,  "scan_angle": 30, "beam_length": 5.0,  "label": "Laser"},
         ],
     },
 }

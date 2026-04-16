@@ -9,6 +9,9 @@ from __future__ import annotations
 from typing import Literal
 from pydantic import BaseModel, Field
 
+EmotionLabel = Literal["euphoric", "uplifting", "dark", "melancholic", "intense", "chill"]
+TemperatureLabel = Literal["warm", "cool", "neutral"]
+
 
 # ---------------------------------------------------------------------------
 # Sub-models
@@ -62,6 +65,23 @@ class Section(BaseModel):
 DropType = Literal["main_drop", "re_drop", "build_peak"]
 
 
+class MoodAnalysis(BaseModel):
+    """
+    Musical key and emotional profile derived from audio chromagram analysis.
+    Consumed by the frontend visualizer to drive color temperature and emotion-
+    responsive wash colors.
+    """
+    key_note:    str   = Field(..., description="Tonic note, e.g. 'A', 'F#'")
+    mode:        Literal["major", "minor"]
+    key_label:   str   = Field(..., description="Human-readable key, e.g. 'A minor'")
+    key_index:   int   = Field(..., ge=0, le=11, description="Chromatic pitch class 0=C…11=B")
+    temperature: TemperatureLabel = Field(..., description="Color temperature hint for visualizer")
+    valence:     float = Field(..., ge=0.0, le=1.0, description="Emotional positivity [0=sad, 1=happy]")
+    energy:      float = Field(..., ge=0.0, le=1.0, description="Perceived energy level [0=calm, 1=intense]")
+    emotion:     EmotionLabel
+    color_bias:  str   = Field(..., description="Recommended base wash palette key from rules.COLORS")
+
+
 class DropCandidate(BaseModel):
     time: float = Field(..., ge=0, description="Drop onset time in seconds")
     bar_index: int = Field(..., ge=0)
@@ -85,9 +105,10 @@ class TimelineSchema(BaseModel):
     Returned by POST /analyze-track and consumed by the cue engine.
     """
 
-    metadata: TrackMetadata
-    bpm: BPMInfo
-    beats: list[Beat]
-    bars: list[Bar]
-    sections: list[Section]
+    metadata:        TrackMetadata
+    bpm:             BPMInfo
+    beats:           list[Beat]
+    bars:            list[Bar]
+    sections:        list[Section]
     drop_candidates: list[DropCandidate]
+    mood:            MoodAnalysis
