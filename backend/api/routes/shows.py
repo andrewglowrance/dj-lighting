@@ -26,6 +26,7 @@ from backend.lighting.rig_loader import get_template
 from backend.lighting.show_store import show_store
 from backend.lighting.stage_layout import get_layout
 from backend.lighting.style_engine import apply_style
+from backend.schemas.style import EnvironmentRenderingProfile
 from backend.schemas.show import (
     RevisionMeta,
     RevisionRequest,
@@ -65,16 +66,18 @@ def _make_viz_plan(
     styled_cues,
     style_profile,
     timeline,
+    env_profile: EnvironmentRenderingProfile | None = None,
 ) -> VisualizationPlan:
     layout = get_layout(rig_id)
     return VisualizationPlan(
-        rig_id             = rig_id,
-        bpm                = timeline.bpm.bpm,
-        total_duration_sec = timeline.metadata.duration_sec,
-        cues               = styled_cues,
-        layout             = layout,
-        style_profile      = style_profile,
-        mood               = timeline.mood,
+        rig_id              = rig_id,
+        bpm                 = timeline.bpm.bpm,
+        total_duration_sec  = timeline.metadata.duration_sec,
+        cues                = styled_cues,
+        layout              = layout,
+        style_profile       = style_profile,
+        mood                = timeline.mood,
+        environment_profile = env_profile or EnvironmentRenderingProfile(),
     )
 
 

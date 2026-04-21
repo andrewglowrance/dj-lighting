@@ -4,12 +4,16 @@ analysis/mood_analyzer.py
 Derives musical key, mode, and emotional profile from audio using
 chromagram analysis and the Krumhansl-Schmuckler (1990) key profiles.
 
+Also extracts per-beat note data (dominant pitch, chroma intensity, onset
+strength, RMS energy, estimated tone duration) for note-responsive lighting.
+
 All librosa imports are deferred to function bodies to keep startup RAM low
 (librosa + numba ≈ 600-800 MB; lazy-loading keeps cold-start below 150 MB).
 
 Public API
 ----------
-analyze_mood(y, sr, bpm) -> MoodResult dict
+analyze_mood(y, sr, bpm)              -> MoodResult dict
+extract_beat_notes(y, sr, beat_times) -> list[dict]  (one entry per beat)
 """
 
 from __future__ import annotations
@@ -164,3 +168,125 @@ def analyze_mood(y: np.ndarray, sr: int, bpm: float) -> dict:
         "emotion":     emotion,
         "color_bias":  color_bias,
     }
+
+
+# ---------------------------------------------------------------------------
+# Per-beat note extraction
+# ---------------------------------------------------------------------------
+
+_HOP_LENGTH = 512  # librosa default hop length used throughout
+
+
+def extract_beat_notes(
+    y: np.ndarray,
+    sr: int,
+    beat_times: np.ndarray,
+) -> list[dict]:
+    """
+    For each beat, extract the dominant chromatic note, its intensity, onset
+    salience, normalised RMS energy, and an estimate of how many consecutive
+    beats share the same dominant pitch class (tone duration).
+
+    All heavy computation uses the same hop_length as the rest of the pipeline
+    (512) so frame indices are consistent.
+
+    Parameters
+    ----------
+    y          : float32 mono audio array
+    sr         : sample rate
+    beat_times : 1-D float array of beat onset times in seconds
+
+    Returns
+    -------
+    list[dict] — one dict per beat with keys:
+        beat_index          int    global beat index (matches Beat.index)
+        dominant_note_index int    chromatic pitch class 0-11  (0 = C)
+        chroma_intensity    float  [0, 1]  strength of the dominant pitch
+        onset_strength      float  [0, 1]  normalised onset salience
+        rms_energy          float  [0, 1]  normalised RMS at this beat
+        tone_duration_beats float  estimated beats the note persists (≥ 1)
+    """
+    import librosa  # lazy — do not move to module level
+
+    if len(beat_times) == 0:
+        return []
+
+    # Isolate harmonic content (removes transients from chroma)
+    y_harm = librosa.effects.harmonic(y, margin=4)
+
+    # CQT chromagram — 12 pitch classes, full octave resolution
+    chroma = librosa.feature.chroma_cqt(
+        y=y_harm, sr=sr, bins_per_octave=36, hop_length=_HOP_LENGTH
+    )  # shape: (12, n_frames)
+
+    # Onset strength envelope
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=_HOP_LENGTH)
+    onset_max = max(float(onset_env.max()), 1e-6)
+
+    # RMS energy envelope
+    rms = librosa.feature.rms(y=y, hop_length=_HOP_LENGTH)[0]
+    rms_max = max(float(rms.max()), 1e-6)
+
+    n_frames = chroma.shape[1]
+    n_beats = len(beat_times)
+
+    # Convert beat times → frame indices (clipped to valid range)
+    beat_frames = np.clip(
+        librosa.time_to_frames(beat_times, sr=sr, hop_length=_HOP_LENGTH),
+        0,
+        n_frames - 1,
+    ).astype(int)
+
+    result: list[dict] = []
+
+    for i in range(n_beats):
+        frame = int(beat_frames[i])
+
+        # Window: this beat's frame up to (but not including) the next beat's frame
+        if i < n_beats - 1:
+            next_frame = int(beat_frames[i + 1])
+        else:
+            # Last beat: use a half-second window
+            next_frame = min(frame + max(1, int(0.5 * sr / _HOP_LENGTH)), n_frames)
+        next_frame = max(next_frame, frame + 1)
+
+        # ── Dominant pitch class ─────────────────────────────────────────────
+        ch_window = chroma[:, frame:next_frame]      # (12, window)
+        chroma_mean = ch_window.mean(axis=1)          # (12,)
+
+        dominant_idx = int(chroma_mean.argmax())
+        chroma_peak = float(chroma_mean[dominant_idx])
+        # Normalise: typical chroma peak ≈ 0.4–0.8; clip to [0, 1]
+        chroma_intensity = float(np.clip(chroma_peak / 0.75, 0.0, 1.0))
+
+        # ── Onset strength ───────────────────────────────────────────────────
+        env_idx = min(frame, len(onset_env) - 1)
+        onset_strength = float(np.clip(onset_env[env_idx] / onset_max, 0.0, 1.0))
+
+        # ── RMS energy ───────────────────────────────────────────────────────
+        rms_idx = min(frame, len(rms) - 1)
+        rms_norm = float(np.clip(rms[rms_idx] / rms_max, 0.0, 1.0))
+
+        # ── Tone duration: consecutive beats sharing the same dominant note ──
+        tone_dur = 1.0
+        for j in range(i + 1, min(i + 8, n_beats)):
+            f_j = int(beat_frames[j])
+            f_next = int(beat_frames[j + 1]) if j < n_beats - 1 else min(
+                f_j + max(1, int(0.5 * sr / _HOP_LENGTH)), n_frames)
+            f_next = max(f_next, f_j + 1)
+            ch_j = chroma[:, f_j:f_next].mean(axis=1)
+            if int(ch_j.argmax()) == dominant_idx:
+                tone_dur += 1.0
+            else:
+                break
+
+        result.append({
+            "beat_index":          i,
+            "dominant_note_index": dominant_idx,
+            "chroma_intensity":    round(chroma_intensity, 3),
+            "onset_strength":      round(onset_strength, 3),
+            "rms_energy":          round(rms_norm, 3),
+            "tone_duration_beats": round(tone_dur, 1),
+        })
+
+    return result

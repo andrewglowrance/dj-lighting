@@ -48,7 +48,14 @@ from backend.lighting.rules import (
     SECTION_RULES,
 )
 from backend.schemas.cues import Cue, CueOutputSchema
-from backend.schemas.timeline import Beat, Bar, Section, TimelineSchema
+from backend.schemas.timeline import Beat, Bar, BeatNote, Section, TimelineSchema
+
+# Maps chromatic pitch-class index 0-11 to the note-color key in COLORS
+_NOTE_COLOR_KEYS: list[str] = [
+    "note_C", "note_Cs", "note_D", "note_Ds",
+    "note_E", "note_F",  "note_Fs","note_G",
+    "note_Gs","note_A",  "note_As","note_B",
+]
 
 if TYPE_CHECKING:
     from backend.lighting.rig_loader import RigTemplate
@@ -78,6 +85,11 @@ def generate_cues(
     # Pre-build fast lookup structures
     bar_map: dict[int, Bar] = {b.index: b for b in timeline.bars}
     beat_map: dict[int, Beat] = {b.index: b for b in timeline.beats}
+
+    # Note lookup: beat_index → BeatNote (empty dict = note-responsive rules fall back)
+    beat_note_map: dict[int, BeatNote] = {
+        bn.beat_index: bn for bn in (timeline.beat_notes or [])
+    }
 
     cues: list[Cue] = []
     cue_counter = 0
@@ -135,65 +147,86 @@ def generate_cues(
             # ----------------------------------------------------------
             elif trigger == "beat":
                 for i, beat in enumerate(section_beats):
+                    resolved = _resolve_params(
+                        params_template, beat_idx=i, n_beats=n_beats)
+                    beat_note = beat_note_map.get(beat.index)
+                    resolved, dur_override = _apply_note_color(
+                        resolved, rule, beat_note, beat_duration)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=beat.time,
-                        duration=_duration(),
+                        duration=dur_override if dur_override is not None else _duration(),
                         cue_type=cue_type,
                         section=section.label,
                         trigger=trigger,
                         target_groups=target_groups,
-                        params=_resolve_params(params_template, beat_idx=i, n_beats=n_beats),
+                        params=resolved,
                     ))
 
             # ----------------------------------------------------------
             elif trigger == "beat_2_4":
                 for beat in section_beats:
                     if beat.beat_in_bar in (1, 3):
+                        resolved = _resolve_params(params_template)
+                        beat_note = beat_note_map.get(beat.index)
+                        resolved, dur_override = _apply_note_color(
+                            resolved, rule, beat_note, beat_duration)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=beat.time,
-                            duration=_duration(),
+                            duration=dur_override if dur_override is not None else _duration(),
                             cue_type=cue_type,
                             section=section.label,
                             trigger=trigger,
                             target_groups=target_groups,
-                            params=_resolve_params(params_template),
+                            params=resolved,
                         ))
 
             # ----------------------------------------------------------
             elif trigger == "bar_beat_1":
                 for j, bar in enumerate(section_bars):
+                    resolved = _resolve_params(
+                        params_template, bar_idx=j, n_bars=n_bars)
+                    # Use the bar's downbeat note (first beat of this bar)
+                    first_beat_idx = bar.beat_indices[0] if bar.beat_indices else None
+                    beat_note = beat_note_map.get(first_beat_idx) if first_beat_idx is not None else None
+                    resolved, dur_override = _apply_note_color(
+                        resolved, rule, beat_note, beat_duration)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=bar.time,
-                        duration=_duration(),
+                        duration=dur_override if dur_override is not None else _duration(),
                         cue_type=cue_type,
                         section=section.label,
                         trigger=trigger,
                         target_groups=target_groups,
-                        params=_resolve_params(params_template, bar_idx=j, n_bars=n_bars),
+                        params=resolved,
                     ))
 
             # ----------------------------------------------------------
             elif trigger == "bar_2_beat_1":
                 for j, bar in enumerate(section_bars):
                     if j % 2 == 0:
+                        resolved = _resolve_params(
+                            params_template,
+                            bar_idx=j,
+                            n_bars=n_bars,
+                            cycle_idx=j // 2,
+                            cycle_list=DROP_COLOR_CYCLE,
+                        )
+                        first_beat_idx = bar.beat_indices[0] if bar.beat_indices else None
+                        beat_note = beat_note_map.get(first_beat_idx) if first_beat_idx is not None else None
+                        resolved, dur_override = _apply_note_color(
+                            resolved, rule, beat_note, beat_duration)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=bar.time,
-                            duration=_duration(),
+                            duration=dur_override if dur_override is not None else _duration(),
                             cue_type=cue_type,
                             section=section.label,
                             trigger=trigger,
                             target_groups=target_groups,
-                            params=_resolve_params(
-                                params_template,
-                                bar_idx=j,
-                                n_bars=n_bars,
-                                cycle_idx=j // 2,
-                                cycle_list=DROP_COLOR_CYCLE,
-                            ),
+                            params=resolved,
                         ))
 
             # ----------------------------------------------------------
@@ -376,6 +409,56 @@ def _resolve_groups(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _apply_note_color(
+    params: dict,
+    rule: dict,
+    beat_note: "BeatNote | None",
+    beat_t: float,
+) -> tuple[dict, float | None]:
+    """
+    If the rule carries use_note_color=True and a BeatNote is available:
+      • Substitute params["color"] with the chromesthetic note-color key.
+      • Scale intensity by RMS energy × chroma intensity so louder / stronger-
+        pitched moments glow brighter and softer moments dim naturally.
+
+    If use_tone_duration=True, also returns a duration override (seconds)
+    equal to tone_duration_beats × beat_t so the wash cue lasts exactly as
+    long as the musical note does.
+
+    Returns (updated_params, duration_override_or_None).
+    """
+    if not rule.get("use_note_color") or beat_note is None:
+        return params, None
+
+    p = dict(params)
+    # Chromesthetic color substitution
+    p["color"] = _NOTE_COLOR_KEYS[beat_note.dominant_note_index]
+
+    # Intensity shaped by RMS energy and chroma peak strength:
+    #   - rms_energy:       overall loudness at this beat
+    #   - chroma_intensity: how clear / dominant the pitch is
+    # Scale so high-energy, clear notes are full brightness; soft/ambiguous ones dim
+    energy_scale   = 0.45 + 0.55 * beat_note.rms_energy
+    clarity_scale  = 0.60 + 0.40 * beat_note.chroma_intensity
+    combined_scale = energy_scale * clarity_scale   # range ≈ 0.27–1.0
+
+    if "intensity" in p:
+        p["intensity"] = round(min(1.0, float(p["intensity"]) * combined_scale), 3)
+    if "intensity_start" in p:
+        p["intensity_start"] = round(
+            min(1.0, float(p["intensity_start"]) * combined_scale), 3)
+    if "intensity_end" in p:
+        p["intensity_end"] = round(
+            min(1.0, float(p["intensity_end"]) * combined_scale), 3)
+
+    # Tone-length duration override
+    dur_override: float | None = None
+    if rule.get("use_tone_duration"):
+        dur_override = max(beat_t * 0.5, beat_note.tone_duration_beats * beat_t)
+
+    return p, dur_override
+
 
 def _make_cue(
     id: str,

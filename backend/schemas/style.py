@@ -134,6 +134,45 @@ class AdvancedLaserFields(BaseModel):
     )
 
 
+class EnvironmentRenderingProfile(BaseModel):
+    """
+    Static scene-geometry and material parameters consumed by the Three.js renderer
+    to build a realistic venue environment around the lighting visualizer.
+
+    Matches the environment_rendering_profile JSON structure provided by the user.
+    Defaults below replicate the reference JSON values exactly.
+    """
+    # ── Geometry visibility flags ────────────────────────────────────────────
+    show_stage_plane:          bool  = Field(True,  description="Render the stage floor plane")
+    show_dj_booth_silhouette:  bool  = Field(True,  description="Render the DJ booth silhouette mesh")
+    show_audience_band:        bool  = Field(True,  description="Render an audience zone at the back")
+    show_fixture_emitters:     bool  = Field(True,  description="Render visible emitter discs on fixtures")
+    show_truss_lines:          bool  = Field(True,  description="Render truss pipe geometry")
+    show_led_wall_blocks:      bool  = Field(True,  description="Render LED wall block grid on stage backdrop")
+
+    # ── Audience style ───────────────────────────────────────────────────────
+    audience_density:  Literal["sparse", "medium", "dense"] = Field(
+        "medium", description="How many audience silhouettes to render")
+    audience_style: Literal[
+        "silhouette_heads_and_shoulders",
+        "silhouette_full_body",
+        "dot_crowd",
+    ] = Field("silhouette_heads_and_shoulders",
+              description="Visual style of the audience geometry")
+
+    # ── Atmosphere / material properties ────────────────────────────────────
+    haze_density_default:  float = Field(0.75, ge=0.0, le=1.0,
+                                          description="Default haze density for the venue volume")
+    screen_reflectivity:   float = Field(0.35, ge=0.0, le=1.0,
+                                          description="LED backdrop / screen reflectivity [0=matte, 1=mirror]")
+    floor_reflectivity:    float = Field(0.12, ge=0.0, le=1.0,
+                                          description="Stage floor reflectivity [0=matte, 1=mirror]")
+    beam_bloom_strength:   float = Field(0.55, ge=0.0, le=2.0,
+                                          description="UnrealBloomPass strength for wash / moving-head beams")
+    laser_bloom_strength:  float = Field(0.18, ge=0.0, le=2.0,
+                                          description="UnrealBloomPass strength for laser lines")
+
+
 class AdvancedLightFields(BaseModel):
     """
     Advanced parameters for conventional fixture (wash, moving head, strobe)

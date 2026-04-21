@@ -14,7 +14,7 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from backend.schemas.timeline import TimelineSchema, MoodAnalysis
 from backend.schemas.cues import CueOutputSchema
-from backend.schemas.style import StyleProfile, StylePatch
+from backend.schemas.style import EnvironmentRenderingProfile, StyleProfile, StylePatch
 
 
 # ---------------------------------------------------------------------------
@@ -26,13 +26,17 @@ class VisualizationPlan(BaseModel):
     Self-contained payload for the frontend lighting visualizer.
     Combines styled cues, stage layout, style metadata, and mood info.
     """
-    rig_id:             str
-    bpm:                float
-    total_duration_sec: float
-    cues:               CueOutputSchema
-    layout:             dict   = Field(..., description="Stage layout from stage_layout.get_layout()")
-    style_profile:      StyleProfile
-    mood:               MoodAnalysis
+    rig_id:              str
+    bpm:                 float
+    total_duration_sec:  float
+    cues:                CueOutputSchema
+    layout:              dict   = Field(..., description="Stage layout from stage_layout.get_layout()")
+    style_profile:       StyleProfile
+    mood:                MoodAnalysis
+    environment_profile: EnvironmentRenderingProfile = Field(
+        default_factory=EnvironmentRenderingProfile,
+        description="Venue geometry and material parameters for the Three.js renderer",
+    )
 
 
 # ---------------------------------------------------------------------------

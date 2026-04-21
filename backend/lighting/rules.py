@@ -87,6 +87,22 @@ COLORS: dict[str, tuple[int, int, int]] = {
     "pure_white":      (255, 255, 255),
     "outro_blue":      (0,   40,  100),
     "build_orange":    (255, 80,  0),
+
+    # Note-responsive wash palette — chromesthetic mapping (Newton color wheel)
+    # Each key maps a chromatic pitch class to a distinct hue for wash lights.
+    # Cue engine substitutes these when use_note_color: True is set on a rule.
+    "note_C":  (255,  30,  30),   # C  → Red
+    "note_Cs": (255,  90,  10),   # C# → Red-Orange
+    "note_D":  (255, 145,   0),   # D  → Orange
+    "note_Ds": (255, 190,   0),   # D# → Amber-Yellow
+    "note_E":  (230, 220,   0),   # E  → Yellow
+    "note_F":  (100, 210,   0),   # F  → Yellow-Green
+    "note_Fs": (  0, 200,  30),   # F# → Green
+    "note_G":  (  0, 195, 120),   # G  → Cyan-Green
+    "note_Gs": (  0, 190, 210),   # G# → Cyan
+    "note_A":  (  0,  90, 255),   # A  → Blue
+    "note_As": ( 80,   0, 255),   # A# → Blue-Violet
+    "note_B":  (160,   0, 200),   # B  → Violet
 }
 
 # Color sequences cycled during drop and build sections
@@ -152,12 +168,15 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {"speed": 0.12, "pattern": "slow_drift"},
         },
+        # Note-responsive pulse: color and intensity track the dominant pitch
         {
             "trigger":        "bar_beat_1",
             "cue_type":       "pulse",
             "target_groups":  [GROUP_WASH_ALL],
-            "duration_beats": 0.25,
-            "params": {"color": "cool_blue", "intensity": 0.40},
+            "use_note_color": True,   # cue engine substitutes note color + energy scale
+            "use_tone_duration": True, # duration stretches to match the note length
+            "duration_beats": 0.50,   # fallback if beat_notes unavailable
+            "params": {"color": "cool_blue", "intensity": 0.38},
         },
         # Lasers OFF for full intro — reserve impact for the drop
         {
@@ -186,15 +205,19 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {"speed": 0.40, "pattern": "sweep"},
         },
+        # Note-responsive beat pulse: hue tracks dominant pitch, intensity ramps +
+        # scales with the beat's RMS energy; duration stretches to note length
         {
             "trigger":        "beat",
             "cue_type":       "pulse",
             "target_groups":  [GROUP_WASH_ALL],
+            "use_note_color": True,
+            "use_tone_duration": True,
             "duration_beats": 0.50,
             "params": {
-                "color":           "warm_amber",
-                "intensity_start": 0.40,
-                "intensity_end":   0.90,
+                "color":           "warm_amber",   # fallback; overridden per beat
+                "intensity_start": 0.38,
+                "intensity_end":   0.85,
                 "_ramp":           True,
             },
         },
@@ -294,10 +317,14 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.50,
             "params": {"color": "drop_red", "intensity": 0.90},
         },
+        # Back wash on beats 2&4 tracks the note being played — adds harmonic
+        # color variation over the fixed drop_red main wash
         {
             "trigger":        "beat_2_4",
             "cue_type":       "pulse",
             "target_groups":  [GROUP_BACK_WASH],
+            "use_note_color": True,
+            "use_tone_duration": True,
             "duration_beats": 0.50,
             "params": {"color": "drop_yellow", "intensity": 0.80},
         },
@@ -381,12 +408,15 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {"speed": 0.15, "pattern": "slow_drift"},
         },
+        # Breakdown washes drift with note color — atmospheric chromatic variation
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "wash",
             "target_groups":  [GROUP_WASH_ALL],
+            "use_note_color": True,
+            "use_tone_duration": True,
             "duration_beats": 8.0,
-            "params": {"color": "breakdown_teal", "intensity": 0.20, "fade_in": 1.5},
+            "params": {"color": "breakdown_teal", "intensity": 0.18, "fade_in": 1.5},
         },
         # Laser: single atmospheric beam that holds for the full section
         {

@@ -25,9 +25,9 @@ from backend.analysis.audio_loader import get_metadata, load_audio
 from backend.analysis.bar_builder import build_bars
 from backend.analysis.beat_tracker import detect_beats
 from backend.analysis.drop_detector import find_drop_candidates
-from backend.analysis.mood_analyzer import analyze_mood
+from backend.analysis.mood_analyzer import analyze_mood, extract_beat_notes
 from backend.analysis.section_detector import detect_sections
-from backend.schemas.timeline import MoodAnalysis, TimelineSchema
+from backend.schemas.timeline import BeatNote, MoodAnalysis, TimelineSchema
 
 
 def analyze_track(filepath: str) -> TimelineSchema:
@@ -64,7 +64,19 @@ def analyze_track(filepath: str) -> TimelineSchema:
     mood_raw = analyze_mood(y, sr, bpm=bpm_info.bpm)
     mood = MoodAnalysis(**mood_raw)
 
-    # 8 – assemble
+    # 8 – per-beat note extraction (dominant pitch, energy, tone duration)
+    _NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F",
+                   "F#", "G", "G#", "A", "A#", "B"]
+    beat_note_dicts = extract_beat_notes(y, sr, beat_times)
+    beat_notes = [
+        BeatNote(
+            dominant_note=_NOTE_NAMES[d["dominant_note_index"]],
+            **d,
+        )
+        for d in beat_note_dicts
+    ]
+
+    # 9 – assemble
     return TimelineSchema(
         metadata=metadata,
         bpm=bpm_info,
@@ -73,4 +85,5 @@ def analyze_track(filepath: str) -> TimelineSchema:
         sections=sections,
         drop_candidates=drop_candidates,
         mood=mood,
+        beat_notes=beat_notes,
     )

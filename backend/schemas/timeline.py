@@ -82,6 +82,27 @@ class MoodAnalysis(BaseModel):
     color_bias:  str   = Field(..., description="Recommended base wash palette key from rules.COLORS")
 
 
+class BeatNote(BaseModel):
+    """
+    Per-beat musical note analysis for note-responsive wash light coloring.
+
+    dominant_note_index  → chromatic pitch class 0–11 (0 = C, 1 = C#, … 11 = B)
+    dominant_note        → human-readable note name  ("C", "C#", "D", … "B")
+    chroma_intensity     → strength of that pitch relative to the chromagram peak [0-1]
+    onset_strength       → normalized onset salience at this beat [0-1]
+    rms_energy           → normalized RMS amplitude at this beat [0-1]
+    tone_duration_beats  → estimated number of consecutive beats sharing the same note
+    """
+    beat_index:          int   = Field(..., ge=0)
+    dominant_note_index: int   = Field(..., ge=0, le=11,
+                                       description="Pitch class 0=C…11=B")
+    dominant_note:       str   = Field(..., description="Note name e.g. 'C', 'F#'")
+    chroma_intensity:    float = Field(..., ge=0.0, le=1.0)
+    onset_strength:      float = Field(..., ge=0.0, le=1.0)
+    rms_energy:          float = Field(..., ge=0.0, le=1.0)
+    tone_duration_beats: float = Field(..., ge=0.0)
+
+
 class DropCandidate(BaseModel):
     time: float = Field(..., ge=0, description="Drop onset time in seconds")
     bar_index: int = Field(..., ge=0)
@@ -112,3 +133,7 @@ class TimelineSchema(BaseModel):
     sections:        list[Section]
     drop_candidates: list[DropCandidate]
     mood:            MoodAnalysis
+    beat_notes:      list[BeatNote] = Field(
+        default_factory=list,
+        description="Per-beat dominant note, energy, and tone-length data for note-responsive lighting",
+    )
