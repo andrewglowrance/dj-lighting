@@ -40,9 +40,24 @@ LAYOUTS: dict[str, dict] = {
             {"id": "par_back_r",  "group": "back_wash",    "type": "par",          "position": [ 1.5, 4.0, -3.5], "aim": [ 0.0, -1.0,  0.6], "beam_angle": 25, "label": "Back R"},
             {"id": "mh_wash_1",   "group": "moving_heads", "type": "moving_head",  "position": [ 0.0, 4.0, -1.0], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 14, "label": "MH Wash"},
             {"id": "strobe_1",    "group": "strobe",       "type": "strobe",       "position": [ 0.0, 4.0,  0.3], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 65, "label": "Strobe"},
-            # 1 centre RGB laser — realistic single-unit small club install
-            # Aimed slightly forward so beams travel over the crowd, not into ceiling
-            {"id": "laser_1",     "group": "lasers",       "type": "laser_rgb",    "position": [ 0.0, 3.9, -0.8], "aim": [ 0.0, -0.4,  1.0], "beam_angle": 1,  "scan_angle": 45, "beam_length": 8.0,  "label": "RGB Laser"},
+            # Overhead centre laser (rear-to-front sweep, audience rake)
+            {"id": "laser_oh_c",   "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "overhead",
+             "position": [ 0.0, 3.9, -0.8], "aim": [ 0.0, -0.4,  1.0],
+             "beam_angle": 1,  "scan_angle": 45, "beam_length": 8.0,
+             "label": "Laser Overhead"},
+            # Stage-deck floor lasers — aimed upward into haze for ceiling-rake
+            # and audience-silhouette effects (as in reference blue burst image)
+            {"id": "laser_fl_l",   "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [-1.8, 0.1, -1.0], "aim": [ 0.35, 1.0, -0.6],
+             "beam_angle": 1,  "scan_angle": 35, "beam_length": 7.0,
+             "label": "Floor Laser L"},
+            {"id": "laser_fl_r",   "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [ 1.8, 0.1, -1.0], "aim": [-0.35, 1.0, -0.6],
+             "beam_angle": 1,  "scan_angle": 35, "beam_length": 7.0,
+             "label": "Floor Laser R"},
         ],
     },
 
@@ -79,13 +94,39 @@ LAYOUTS: dict[str, dict] = {
             # 2 strobes — front truss
             {"id": "strobe_1", "group": "strobe", "type": "strobe", "position": [-2.0, 8.0, -0.5], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 68, "label": "Strobe L"},
             {"id": "strobe_2", "group": "strobe", "type": "strobe", "position": [ 2.0, 8.0, -0.5], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 68, "label": "Strobe R"},
-            # ── Festival laser array ──────────────────────────────────────────
-            # 2 high-power RGB units on rear truss, aimed toward the audience.
-            # Wide scan angle for classic festival "laser sky" effect.
-            {"id": "laser_1",  "group": "lasers", "type": "laser_rgb", "position": [-4.0, 8.0, -5.0], "aim": [ 0.25, -0.3,  1.0], "beam_angle": 1,  "scan_angle": 70, "beam_length": 20.0, "label": "Laser L"},
-            {"id": "laser_2",  "group": "lasers", "type": "laser_rgb", "position": [ 4.0, 8.0, -5.0], "aim": [-0.25, -0.3,  1.0], "beam_angle": 1,  "scan_angle": 70, "beam_length": 20.0, "label": "Laser R"},
-            # 1 centre unit on front truss for aerial fan / x-cross patterns
-            {"id": "laser_3",  "group": "lasers", "type": "laser_rgb", "position": [ 0.0, 8.0, -1.5], "aim": [ 0.0,  -0.5,  0.5], "beam_angle": 1,  "scan_angle": 55, "beam_length": 15.0, "label": "Laser C"},
+            # ── Festival laser array (multi-zone — as per reference images) ──
+            # Rear truss overhead: 2 high-power units sweeping toward audience
+            {"id": "laser_oh_l",  "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "overhead",
+             "position": [-4.0, 8.0, -5.0], "aim": [ 0.25, -0.3,  1.0],
+             "beam_angle": 1, "scan_angle": 70, "beam_length": 22.0, "label": "Laser OH-L"},
+            {"id": "laser_oh_r",  "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "overhead",
+             "position": [ 4.0, 8.0, -5.0], "aim": [-0.25, -0.3,  1.0],
+             "beam_angle": 1, "scan_angle": 70, "beam_length": 22.0, "label": "Laser OH-R"},
+            # Front truss centre: fan / x-cross patterns
+            {"id": "laser_oh_c",  "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "overhead",
+             "position": [ 0.0, 8.0, -1.5], "aim": [ 0.0, -0.5,  0.5],
+             "beam_angle": 1, "scan_angle": 55, "beam_length": 16.0, "label": "Laser OH-C"},
+            # Stage-deck floor lasers — upward aimed for ceiling-rake and
+            # audience-silhouette burst (reference blue burst & green fan frames)
+            {"id": "laser_fl_l",  "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [-5.0, 0.1, -2.0], "aim": [ 0.50, 1.0, -0.5],
+             "beam_angle": 1, "scan_angle": 50, "beam_length": 16.0, "label": "Floor Laser L"},
+            {"id": "laser_fl_cl", "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [-2.0, 0.1, -2.0], "aim": [ 0.20, 1.0, -0.5],
+             "beam_angle": 1, "scan_angle": 50, "beam_length": 14.0, "label": "Floor Laser CL"},
+            {"id": "laser_fl_cr", "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [ 2.0, 0.1, -2.0], "aim": [-0.20, 1.0, -0.5],
+             "beam_angle": 1, "scan_angle": 50, "beam_length": 14.0, "label": "Floor Laser CR"},
+            {"id": "laser_fl_r",  "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [ 5.0, 0.1, -2.0], "aim": [-0.50, 1.0, -0.5],
+             "beam_angle": 1, "scan_angle": 50, "beam_length": 16.0, "label": "Floor Laser R"},
         ],
     },
 
@@ -102,10 +143,16 @@ LAYOUTS: dict[str, dict] = {
             {"id": "wash_bar_r", "group": "wash_all",  "type": "batten",       "position": [ 1.2, 2.5,  0.0], "aim": [ 0.0, -1.0,  0.5], "beam_angle": 55, "label": "Wash R"},
             {"id": "derby_1",    "group": "spots",     "type": "derby",        "position": [ 0.0, 2.5,  0.0], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 18, "label": "Derby"},
             {"id": "strobe_1",   "group": "strobe",    "type": "strobe",       "position": [ 0.0, 2.5,  0.4], "aim": [ 0.0, -1.0,  0.0], "beam_angle": 62, "label": "Strobe"},
-            # 1 compact RGB laser — typical mobile DJ add-on unit.
-            # Narrower scan angle reflects a lower-power fixture;
-            # aimed slightly forward so beams cross the dancefloor not the ceiling.
-            {"id": "laser_1",    "group": "lasers",    "type": "laser_rgb",    "position": [ 0.0, 2.3,  0.3], "aim": [ 0.0, -0.5,  1.0], "beam_angle": 1,  "scan_angle": 30, "beam_length": 5.0,  "label": "Laser"},
+            # 1 overhead compact RGB laser (narrow scan — small power unit)
+            {"id": "laser_oh_c", "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "overhead",
+             "position": [ 0.0, 2.3,  0.3], "aim": [ 0.0, -0.5,  1.0],
+             "beam_angle": 1, "scan_angle": 30, "beam_length": 5.0, "label": "Laser"},
+            # 1 floor-level unit for upward fan (mobile DJ floor stake unit)
+            {"id": "laser_fl_c", "group": "lasers", "type": "laser_rgb",
+             "emission_zone": "stage_deck",
+             "position": [ 0.0, 0.1,  0.0], "aim": [ 0.0, 1.0, -0.3],
+             "beam_angle": 1, "scan_angle": 25, "beam_length": 4.0, "label": "Floor Laser"},
         ],
     },
 }

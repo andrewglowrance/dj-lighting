@@ -18,6 +18,41 @@ from pydantic import BaseModel, Field
 
 
 # ---------------------------------------------------------------------------
+# Vocabulary types derived from the visual reference dataset
+# ---------------------------------------------------------------------------
+
+VisualFamilyType = Literal[
+    "laser_burst",          # explosive multi-beam burst from multiple origins
+    "laser_fan",            # wide spread fan from single or symmetric origins
+    "laser_sheet",          # flat planar sweep filling horizontal space
+    "laser_tunnel",         # converging beams creating a vanishing-point tunnel
+    "crossbeam_laser",      # beams crossing each other from opposing sources
+    "wash_only",            # no lasers; pure wash/beam fill
+    "wash_plus_laser",      # hybrid: moving-head beams + laser accents
+    "beam_stack",           # multiple parallel or fanned moving-head shafts
+    "strobe_accent",        # strobe-forward moment with reduced laser
+    "crowd_blinder_moment", # white blinder / whiteout reveal
+]
+
+LaserMovementMechanic = Literal[
+    "static_hold",           # locked in place, no sweep
+    "slow_sweep",            # gradual left↔right oscillation
+    "fast_sweep",            # rapid left↔right oscillation
+    "fan_open",              # spread_deg expands outward over time
+    "fan_close",             # spread_deg collapses inward
+    "burst_outward",         # sudden radial explosion from origin
+    "burst_inward",          # beams converge rapidly to a centre point
+    "crosshatch",            # beams from opposing sources crossing mid-air
+    "alternating_left_right",# beams snap alternately to left then right
+    "stacked_vertical_layers",# upper zone and lower zone with independent colors
+    "ceiling_rake",          # beams aimed up to paint the ceiling
+    "audience_rake",         # beams angled into the audience space
+    "center_converge",       # all beams converge to a single mid-air point
+    "symmetrical_mirror",    # left and right sides mirror each other perfectly
+]
+
+
+# ---------------------------------------------------------------------------
 # Sub-profiles
 # ---------------------------------------------------------------------------
 
@@ -63,12 +98,27 @@ class SectionEmphasis(BaseModel):
     outro_weight:     float = Field(1.0, ge=0.0, le=2.0)
 
 
+class LaserLayerProfile(BaseModel):
+    """
+    Dual-zone color layer separation, as seen in the red/blue split reference.
+    When enabled, upper-zone beams use upper_palette and lower-zone beams use
+    lower_palette — two independent color families coexist simultaneously.
+    """
+    enabled:           bool  = False
+    upper_palette:     str   = "laser_red"   # color key for overhead / canopy beams
+    lower_palette:     str   = "laser_blue"  # color key for stage-deck / floor beams
+    upper_beam_count:  int   = Field(4, ge=1, le=20)
+    lower_beam_count:  int   = Field(4, ge=1, le=20)
+    upper_spread_deg:  float = Field(45.0, ge=0.0, le=180.0)
+    lower_spread_deg:  float = Field(60.0, ge=0.0, le=180.0)
+
+
 class LaserProfile(BaseModel):
     enabled:           bool  = True
     density:           float = Field(0.70, ge=0.0, le=1.0,
                                      description="Fraction of laser cues retained [0=none, 1=all]")
     intensity_scale:   float = Field(1.0,  ge=0.0, le=2.0)
-    palette:           Literal["rgb", "cool", "warm", "green_only",
+    palette:           Literal["rgb", "cool", "warm", "green_only", "magenta_only",
                                "red_only", "white_only", "auto"] = "auto"
     movement_speed:    float = Field(1.0,  ge=0.0, le=3.0)
     movement_range:    float = Field(1.0,  ge=0.0, le=2.0)
@@ -76,6 +126,21 @@ class LaserProfile(BaseModel):
                                      description="Multiplier on spread_deg for fan patterns")
     restrict_to_drops: bool  = False
     chase_intensity:   float = Field(1.0,  ge=0.0, le=2.0)
+
+    # Reference-dataset-derived fields
+    visual_family:       VisualFamilyType         = "laser_fan"
+    movement_mechanics:  list[LaserMovementMechanic] = Field(
+        default_factory=lambda: ["slow_sweep", "symmetrical_mirror"])
+    layer_profile:       LaserLayerProfile         = Field(default_factory=LaserLayerProfile)
+    burst_cluster:       bool  = False   # enables multi-origin burst geometry
+    crosshatch:          bool  = False   # enables opposing-source crossing beams
+    emission_zones:      list[Literal["overhead", "stage_deck", "side"]] = Field(
+        default_factory=lambda: ["overhead"],
+        description="Which fixture zones actively emit beams")
+    beam_count_target:   int   = Field(8, ge=1, le=48,
+                                       description="Desired total beam count across all fixtures")
+    haze_dependency:     float = Field(0.70, ge=0.0, le=1.0,
+                                       description="How strongly beam visibility scales with fog_density")
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +225,7 @@ class StylePatch(BaseModel):
     build_weight:        float | None = None
     breakdown_weight:    float | None = None
 
-    # Laser
+    # Laser — base
     laser_enabled:       bool  | None = None
     laser_density:       float | None = None
     laser_intensity:     float | None = None
@@ -170,6 +235,17 @@ class StylePatch(BaseModel):
     laser_fan_width:     float | None = None
     laser_drops_only:    bool  | None = None
     laser_chase_intens:  float | None = None
+    laser_beam_count:    int   | None = None
+
+    # Laser — reference-dataset fields
+    laser_visual_family:    str  | None = None   # VisualFamilyType key
+    laser_burst_cluster:    bool | None = None
+    laser_crosshatch:       bool | None = None
+    laser_haze_dependency:  float| None = None
+    laser_layer_enabled:    bool | None = None
+    laser_layer_upper_pal:  str  | None = None
+    laser_layer_lower_pal:  str  | None = None
+    laser_emission_zones:   list[str] | None = None
 
     # Revision notes (filled in by apply_patch)
     changed_fields: list[str] = Field(default_factory=list)
