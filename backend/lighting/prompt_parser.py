@@ -15,6 +15,17 @@ Expanded in v2 with:
   - Haze dependency and beam-count target signals
   - Magenta / violet palette support
 
+Expanded in v3 with AdvancedLaserFields / AdvancedLightFields signals:
+  - Laser plane orientation (horizontal, diagonal, vertical, mixed)
+  - Beam edge hardness (hard knife-edge vs. soft scatter)
+  - Laser temporal behavior (hold, pulse, sweep, alternate, burst)
+  - Light temporal behavior (hold, fade, pulse, chase, reveal)
+  - Spatial zone routing (upper_truss, mid_stage, floor_emitters, side_emitters)
+  - Color separation mode (single, upper_lower_split, left_right_split, mixed)
+  - Audience reveal and screen visibility strength
+  - Movement transition speed (snap, fast, medium, slow)
+  - Bloom and haze density estimates
+
 Design goals:
   - No LLM dependency — purely rule-based; output is inspectable and testable.
   - Every change is recorded in notes[] for frontend display.
@@ -26,6 +37,8 @@ Design goals:
 from __future__ import annotations
 
 from backend.schemas.style import (
+    AdvancedLaserFields,
+    AdvancedLightFields,
     AtmosphereProfile,
     BrightnessProfile,
     LaserLayerProfile,
@@ -100,6 +113,33 @@ def _default_layer() -> dict:
     return dict(enabled=False, upper_palette="laser_red", lower_palette="laser_blue",
                 upper_beam_count=4, lower_beam_count=4,
                 upper_spread_deg=45.0, lower_spread_deg=60.0)
+
+
+def _default_adv_laser() -> dict:
+    return dict(
+        laser_plane_orientation="horizontal",
+        laser_open_angle_degrees=45.0,
+        spatial_zone_usage=["upper_truss", "floor_emitters"],
+        beam_edge_hardness=0.70,
+        bloom_radius_estimate=0.30,
+        haze_density_estimate=0.50,
+        source_legibility_score=0.70,
+        audience_reveal_strength=0.50,
+        screen_visibility_strength=0.50,
+        laser_temporal_behavior="sweep",
+        movement_transition_speed="medium",
+        color_separation_mode="single",
+    )
+
+
+def _default_adv_light() -> dict:
+    return dict(
+        light_temporal_behavior="hold",
+        movement_transition_speed="medium",
+        spatial_zone_usage=["upper_truss"],
+        bloom_radius_estimate=0.20,
+        audience_reveal_strength=0.40,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -583,12 +623,148 @@ def _sig_laser(t: str, lp: dict, layer: dict, ap: dict, notes: list[str]) -> Non
                      "high-intensity strobe + burst laser")
 
 
+def _sig_advanced(
+    t: str,
+    adv_laser: dict,
+    adv_light: dict,
+    notes: list[str],
+) -> None:
+    """
+    Extract signals for AdvancedLaserFields and AdvancedLightFields.
+    These drive fine-grained frontend rendering — they never alter cue timing.
+    """
+    # ── Laser plane orientation ─────────────────────────────────────────────
+    if _has(t, "horizontal laser", "horizontal sheet", "horizontal beam",
+               "flat laser", "low horizontal"):
+        adv_laser["laser_plane_orientation"] = "horizontal"
+        notes.append("Laser plane: horizontal")
+    elif _has(t, "diagonal laser", "angled laser", "angled beam", "diagonal beam"):
+        adv_laser["laser_plane_orientation"] = "diagonal"
+        notes.append("Laser plane: diagonal")
+    elif _has(t, "vertical laser", "vertical beam", "vertical curtain",
+                 "curtain laser"):
+        adv_laser["laser_plane_orientation"] = "vertical"
+        notes.append("Laser plane: vertical curtain")
+    elif _has(t, "mixed plane", "multi-plane", "mixed direction"):
+        adv_laser["laser_plane_orientation"] = "mixed"
+        notes.append("Laser plane: mixed orientations")
+
+    # ── Beam edge hardness ──────────────────────────────────────────────────
+    if _has(t, "sharp beam", "hard edge", "knife edge", "crisp beam",
+               "tight beam edge"):
+        adv_laser["beam_edge_hardness"] = min(1.0, adv_laser["beam_edge_hardness"] + 0.25)
+        notes.append("Beam edge hardness increased")
+    if _has(t, "soft beam", "diffuse", "soft edge", "blurry beam", "hazy beam"):
+        adv_laser["beam_edge_hardness"] = max(0.0, adv_laser["beam_edge_hardness"] - 0.30)
+        notes.append("Beam edge softened")
+
+    # ── Bloom ───────────────────────────────────────────────────────────────
+    if _has(t, "more bloom", "more glow", "glowing beam", "heavy bloom",
+               "intense glow"):
+        adv_laser["bloom_radius_estimate"] = min(1.0, adv_laser["bloom_radius_estimate"] + 0.25)
+        adv_light["bloom_radius_estimate"] = min(1.0, adv_light["bloom_radius_estimate"] + 0.20)
+        notes.append("Bloom / glow radius increased")
+    if _has(t, "less bloom", "no bloom", "less glow", "clean beam"):
+        adv_laser["bloom_radius_estimate"] = max(0.0, adv_laser["bloom_radius_estimate"] - 0.20)
+        notes.append("Bloom reduced")
+
+    # ── Laser temporal behavior ─────────────────────────────────────────────
+    if _has(t, "pulsing laser", "laser pulse", "pulsed beam", "blinking laser"):
+        adv_laser["laser_temporal_behavior"] = "pulse"
+        notes.append("Laser temporal: pulse")
+    elif _has(t, "static hold", "hold laser", "laser freeze", "frozen beam"):
+        adv_laser["laser_temporal_behavior"] = "hold"
+        notes.append("Laser temporal: static hold")
+    elif _has(t, "sweeping laser", "sweep laser", "scanning laser"):
+        adv_laser["laser_temporal_behavior"] = "sweep"
+        notes.append("Laser temporal: sweep")
+    elif _has(t, "alternating laser", "laser alternate", "laser flicker alternate"):
+        adv_laser["laser_temporal_behavior"] = "alternate"
+        notes.append("Laser temporal: alternate")
+    elif _has(t, "burst laser", "explosive laser", "sudden burst"):
+        adv_laser["laser_temporal_behavior"] = "burst"
+        notes.append("Laser temporal: burst")
+
+    # ── Light temporal behavior ─────────────────────────────────────────────
+    if _has(t, "fading light", "slow fade", "fade in fade out", "smooth light fade"):
+        adv_light["light_temporal_behavior"] = "fade"
+        notes.append("Light temporal: fade")
+    elif _has(t, "pulsing light", "light pulse", "strobing effect"):
+        adv_light["light_temporal_behavior"] = "pulse"
+        notes.append("Light temporal: pulse")
+    elif _has(t, "chasing light", "light chase", "running light", "chase effect"):
+        adv_light["light_temporal_behavior"] = "chase"
+        notes.append("Light temporal: chase")
+    elif _has(t, "reveal effect", "dramatic reveal", "build up reveal", "white reveal"):
+        adv_light["light_temporal_behavior"] = "reveal"
+        notes.append("Light temporal: reveal")
+
+    # ── Spatial zone routing ────────────────────────────────────────────────
+    if _has(t, "mid stage", "middle stage", "mid-stage wash"):
+        if "mid_stage" not in adv_laser["spatial_zone_usage"]:
+            adv_laser["spatial_zone_usage"] = adv_laser["spatial_zone_usage"] + ["mid_stage"]
+        if "mid_stage" not in adv_light["spatial_zone_usage"]:
+            adv_light["spatial_zone_usage"] = adv_light["spatial_zone_usage"] + ["mid_stage"]
+        notes.append("Mid-stage zone activated")
+    if _has(t, "side emitter", "side laser", "side light", "flank laser"):
+        if "side_emitters" not in adv_laser["spatial_zone_usage"]:
+            adv_laser["spatial_zone_usage"] = adv_laser["spatial_zone_usage"] + ["side_emitters"]
+        notes.append("Side emitter zone activated")
+    if _has(t, "all zones", "full stage", "every zone", "all around"):
+        adv_laser["spatial_zone_usage"] = [
+            "upper_truss", "mid_stage", "floor_emitters", "side_emitters"]
+        adv_light["spatial_zone_usage"] = [
+            "upper_truss", "mid_stage", "floor_emitters", "side_emitters"]
+        notes.append("All spatial zones activated")
+
+    # ── Color separation mode ───────────────────────────────────────────────
+    if _has(t, "upper lower color split", "upper lower split", "top bottom color"):
+        adv_laser["color_separation_mode"] = "upper_lower_split"
+        notes.append("Color separation: upper/lower split")
+    elif _has(t, "left right color split", "left right split", "side color split"):
+        adv_laser["color_separation_mode"] = "left_right_split"
+        notes.append("Color separation: left/right split")
+    elif _has(t, "mixed color", "full color mix", "color mixing"):
+        adv_laser["color_separation_mode"] = "mixed"
+        notes.append("Color separation: mixed")
+
+    # ── Audience reveal strength ────────────────────────────────────────────
+    if _has(t, "over the crowd", "over audience", "audience laser",
+               "rake the crowd", "into the crowd"):
+        adv_laser["audience_reveal_strength"] = min(
+            1.0, adv_laser["audience_reveal_strength"] + 0.35)
+        adv_light["audience_reveal_strength"] = min(
+            1.0, adv_light["audience_reveal_strength"] + 0.25)
+        notes.append("Audience reveal strength increased")
+
+    # ── Movement transition speed ───────────────────────────────────────────
+    if _has(t, "snap transition", "instant snap", "hard snap", "instant cut"):
+        adv_laser["movement_transition_speed"] = "snap"
+        adv_light["movement_transition_speed"] = "snap"
+        notes.append("Transition speed: snap")
+    elif _has(t, "fast transition", "quick transition"):
+        adv_laser["movement_transition_speed"] = "fast"
+        adv_light["movement_transition_speed"] = "fast"
+        notes.append("Transition speed: fast")
+    elif _has(t, "slow transition", "very slow transition", "gradual movement"):
+        adv_laser["movement_transition_speed"] = "slow"
+        adv_light["movement_transition_speed"] = "slow"
+        notes.append("Transition speed: slow")
+
+    # ── Screen (backdrop) visibility ────────────────────────────────────────
+    if _has(t, "visible on screen", "backdrop visibility", "screen legible"):
+        adv_laser["screen_visibility_strength"] = min(
+            1.0, adv_laser["screen_visibility_strength"] + 0.30)
+        notes.append("Screen/backdrop visibility increased")
+
+
 # ---------------------------------------------------------------------------
 # Build final models from working dicts
 # ---------------------------------------------------------------------------
 
 def _build_profile(top: dict, bp: dict, mp: dict, sp: dict, ap: dict,
                     se: dict, lp: dict, layer: dict,
+                    adv_laser: dict, adv_light: dict,
                     prompt_source: str, notes: list[str]) -> StyleProfile:
     return StyleProfile(
         **top,
@@ -601,8 +777,10 @@ def _build_profile(top: dict, bp: dict, mp: dict, sp: dict, ap: dict,
             **{k: v for k, v in lp.items() if k != "layer_profile"},
             layer_profile  = LaserLayerProfile(**layer),
         ),
-        prompt_source = prompt_source,
-        notes         = notes,
+        advanced_laser = AdvancedLaserFields(**adv_laser),
+        advanced_light = AdvancedLightFields(**adv_light),
+        prompt_source  = prompt_source,
+        notes          = notes,
     )
 
 
@@ -616,14 +794,16 @@ def parse_prompt(prompt: str) -> StyleProfile:
         return StyleProfile(notes=["No prompt provided; using defaults"])
 
     t = prompt.lower().strip()
-    top   = _default_top()
-    bp    = _default_bp()
-    mp    = _default_mp()
-    sp    = _default_sp()
-    ap    = _default_ap()
-    se    = _default_se()
-    lp    = _default_lp()
-    layer = _default_layer()
+    top       = _default_top()
+    bp        = _default_bp()
+    mp        = _default_mp()
+    sp        = _default_sp()
+    ap        = _default_ap()
+    se        = _default_se()
+    lp        = _default_lp()
+    layer     = _default_layer()
+    adv_laser = _default_adv_laser()
+    adv_light = _default_adv_light()
     notes: list[str] = []
 
     # Named style tokens take priority; if matched, skip generic signals for
@@ -646,11 +826,13 @@ def parse_prompt(prompt: str) -> StyleProfile:
     _sig_atmosphere(t, ap, notes)
     _sig_section_emphasis(t, se, notes)
     _sig_laser(t, lp, layer, ap, notes)
+    _sig_advanced(t, adv_laser, adv_light, notes)
 
     if not notes:
         notes.append("No specific signals detected; using defaults")
 
-    return _build_profile(top, bp, mp, sp, ap, se, lp, layer, prompt, notes)
+    return _build_profile(top, bp, mp, sp, ap, se, lp, layer,
+                          adv_laser, adv_light, prompt, notes)
 
 
 # ---------------------------------------------------------------------------
@@ -796,6 +978,71 @@ def parse_revision(revision_prompt: str, current: StyleProfile) -> StylePatch:
         notes.append("NOTE: physical effects not supported — "
                      "approximated with strobe + burst laser")
 
+    # Advanced laser fields
+    cur_al = current.advanced_laser
+    cur_ali = current.advanced_light
+    if _has(t, "horizontal laser", "flat laser"):
+        patch.adv_laser_plane = "horizontal"; changed.append("adv.laser_plane")
+    elif _has(t, "diagonal laser", "angled laser"):
+        patch.adv_laser_plane = "diagonal"; changed.append("adv.laser_plane")
+    elif _has(t, "vertical laser", "curtain laser"):
+        patch.adv_laser_plane = "vertical"; changed.append("adv.laser_plane")
+    elif _has(t, "mixed plane"):
+        patch.adv_laser_plane = "mixed"; changed.append("adv.laser_plane")
+
+    if _has(t, "hard beam", "sharp beam", "knife edge"):
+        patch.adv_laser_edge_hardness = min(1.0, cur_al.beam_edge_hardness + 0.25)
+        changed.append("adv.beam_edge_hardness")
+        notes.append("Beam edge hardness increased")
+    if _has(t, "soft beam", "diffuse beam"):
+        patch.adv_laser_edge_hardness = max(0.0, cur_al.beam_edge_hardness - 0.25)
+        changed.append("adv.beam_edge_hardness")
+        notes.append("Beam edge softened")
+
+    if _has(t, "pulsing laser", "laser pulse"):
+        patch.adv_laser_temporal = "pulse"
+        changed.append("adv.laser_temporal"); notes.append("Laser temporal: pulse")
+    elif _has(t, "hold laser", "static laser hold"):
+        patch.adv_laser_temporal = "hold"
+        changed.append("adv.laser_temporal"); notes.append("Laser temporal: hold")
+    elif _has(t, "burst laser", "explosive laser"):
+        patch.adv_laser_temporal = "burst"
+        changed.append("adv.laser_temporal"); notes.append("Laser temporal: burst")
+
+    if _has(t, "snap transition", "instant snap"):
+        patch.adv_laser_transition_spd = "snap"
+        patch.adv_light_transition_spd = "snap"
+        changed.append("adv.transition_speed"); notes.append("Transition speed: snap")
+    elif _has(t, "slow transition", "gradual movement"):
+        patch.adv_laser_transition_spd = "slow"
+        patch.adv_light_transition_spd = "slow"
+        changed.append("adv.transition_speed"); notes.append("Transition speed: slow")
+
+    if _has(t, "fading light", "light fade"):
+        patch.adv_light_temporal = "fade"
+        changed.append("adv.light_temporal"); notes.append("Light temporal: fade")
+    elif _has(t, "chasing light", "chase effect"):
+        patch.adv_light_temporal = "chase"
+        changed.append("adv.light_temporal"); notes.append("Light temporal: chase")
+    elif _has(t, "reveal effect", "dramatic reveal"):
+        patch.adv_light_temporal = "reveal"
+        changed.append("adv.light_temporal"); notes.append("Light temporal: reveal")
+
+    if _has(t, "upper lower color split", "top bottom split"):
+        patch.adv_laser_color_sep = "upper_lower_split"
+        changed.append("adv.color_sep"); notes.append("Color sep: upper/lower")
+    elif _has(t, "left right color split"):
+        patch.adv_laser_color_sep = "left_right_split"
+        changed.append("adv.color_sep"); notes.append("Color sep: left/right")
+
+    if _has(t, "more bloom", "more glow"):
+        patch.adv_laser_bloom = min(1.0, cur_al.bloom_radius_estimate + 0.25)
+        patch.adv_light_bloom = min(1.0, cur_ali.bloom_radius_estimate + 0.20)
+        changed.append("adv.bloom"); notes.append("Bloom increased")
+    if _has(t, "less bloom", "no bloom"):
+        patch.adv_laser_bloom = max(0.0, cur_al.bloom_radius_estimate - 0.20)
+        changed.append("adv.bloom"); notes.append("Bloom reduced")
+
     if not changed:
         notes.append("No changes detected — existing style preserved")
 
@@ -821,7 +1068,9 @@ def apply_patch(patch: StylePatch, current: StyleProfile,
     ap = current.atmosphere_profile.model_dump()
     se = current.section_emphasis.model_dump()
     lp = current.laser_profile.model_dump(exclude={"layer_profile"})
-    layer = current.laser_profile.layer_profile.model_dump()
+    layer     = current.laser_profile.layer_profile.model_dump()
+    adv_laser = current.advanced_laser.model_dump()
+    adv_light = current.advanced_light.model_dump()
 
     for field in ("aggressiveness", "smoothness", "festival_scale_bias",
                   "restraint_level", "visual_density"):
@@ -869,5 +1118,27 @@ def apply_patch(patch: StylePatch, current: StyleProfile,
     if patch.laser_layer_upper_pal is not None: layer["upper_palette"] = patch.laser_layer_upper_pal
     if patch.laser_layer_lower_pal is not None: layer["lower_palette"] = patch.laser_layer_lower_pal
 
+    # Advanced laser field patches
+    if patch.adv_laser_plane          is not None: adv_laser["laser_plane_orientation"]   = patch.adv_laser_plane
+    if patch.adv_laser_open_angle     is not None: adv_laser["laser_open_angle_degrees"]  = patch.adv_laser_open_angle
+    if patch.adv_laser_spatial_zones  is not None: adv_laser["spatial_zone_usage"]        = patch.adv_laser_spatial_zones
+    if patch.adv_laser_edge_hardness  is not None: adv_laser["beam_edge_hardness"]        = patch.adv_laser_edge_hardness
+    if patch.adv_laser_bloom          is not None: adv_laser["bloom_radius_estimate"]     = patch.adv_laser_bloom
+    if patch.adv_laser_haze_density   is not None: adv_laser["haze_density_estimate"]     = patch.adv_laser_haze_density
+    if patch.adv_laser_src_legibility is not None: adv_laser["source_legibility_score"]   = patch.adv_laser_src_legibility
+    if patch.adv_laser_audience_rev   is not None: adv_laser["audience_reveal_strength"]  = patch.adv_laser_audience_rev
+    if patch.adv_laser_screen_vis     is not None: adv_laser["screen_visibility_strength"]= patch.adv_laser_screen_vis
+    if patch.adv_laser_temporal       is not None: adv_laser["laser_temporal_behavior"]   = patch.adv_laser_temporal
+    if patch.adv_laser_transition_spd is not None: adv_laser["movement_transition_speed"] = patch.adv_laser_transition_spd
+    if patch.adv_laser_color_sep      is not None: adv_laser["color_separation_mode"]     = patch.adv_laser_color_sep
+
+    # Advanced light field patches
+    if patch.adv_light_temporal       is not None: adv_light["light_temporal_behavior"]   = patch.adv_light_temporal
+    if patch.adv_light_transition_spd is not None: adv_light["movement_transition_speed"] = patch.adv_light_transition_spd
+    if patch.adv_light_spatial_zones  is not None: adv_light["spatial_zone_usage"]        = patch.adv_light_spatial_zones
+    if patch.adv_light_bloom          is not None: adv_light["bloom_radius_estimate"]     = patch.adv_light_bloom
+    if patch.adv_light_audience_rev   is not None: adv_light["audience_reveal_strength"]  = patch.adv_light_audience_rev
+
     combined_notes = list(current.notes) + patch.notes
-    return _build_profile(top, bp, mp, sp, ap, se, lp, layer, revision_prompt, combined_notes)
+    return _build_profile(top, bp, mp, sp, ap, se, lp, layer,
+                          adv_laser, adv_light, revision_prompt, combined_notes)

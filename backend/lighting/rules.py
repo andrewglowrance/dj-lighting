@@ -130,17 +130,27 @@ GROUP_LASERS      = "lasers"
 # Optional keys:
 #   duration_beats float  Override duration = beat_duration * N
 #   duration_sec   float  Override duration to a fixed number of seconds
+#   fill_section   bool   If True, duration spans the full section (eliminates dark gaps)
 
 SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "intro": [
+        # Sustained ambient wash that covers the full intro — no dark gaps
         {
             "trigger":       "section_start",
             "cue_type":      "wash",
             "target_groups": [GROUP_WASH_ALL],
-            "duration_sec":  4.0,
-            "params": {"color": "cool_blue", "intensity": 0.30, "fade_in": 2.0},
+            "fill_section":  True,
+            "params": {"color": "cool_blue", "intensity": 0.20, "fade_in": 2.0},
+        },
+        # Gentle slow movement — adds depth without distracting
+        {
+            "trigger":        "section_start",
+            "cue_type":       "movement_enable",
+            "target_groups":  [GROUP_MOVING_HEADS],
+            "fill_section":   True,
+            "params": {"speed": 0.12, "pattern": "slow_drift"},
         },
         {
             "trigger":        "bar_beat_1",
@@ -149,23 +159,31 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "cool_blue", "intensity": 0.40},
         },
-        # Lasers OFF — reserve impact for the drop
+        # Lasers OFF for full intro — reserve impact for the drop
         {
             "trigger":       "section_start",
             "cue_type":      "laser_off",
             "target_groups": [GROUP_LASERS],
-            "duration_sec":  4.0,
+            "fill_section":  True,
             "params": {},
         },
     ],
 
     # -----------------------------------------------------------------------
     "build": [
+        # Sustained low-level wash fills the section between pulses
+        {
+            "trigger":        "section_start",
+            "cue_type":       "wash",
+            "target_groups":  [GROUP_WASH_ALL],
+            "fill_section":   True,
+            "params": {"color": "warm_amber", "intensity": 0.22, "fade_in": 0.5},
+        },
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
             "target_groups":  [GROUP_MOVING_HEADS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {"speed": 0.40, "pattern": "sweep"},
         },
         {
@@ -201,12 +219,12 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "pure_white", "transition": "snap"},
         },
-        # Laser: slow single-beam scan in green, ramps speed with section
+        # Laser: slow single-beam scan that sustains the whole build
         {
             "trigger":        "section_start",
             "cue_type":       "laser_scan",
             "target_groups":  [GROUP_LASERS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {
                 "color":      "laser_green",
                 "speed":      0.25,
@@ -215,7 +233,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "intensity":  0.60,
             },
         },
-        # Last 4 bars: widen to 3-beam scan, speed up
+        # Last 4 bars: widen to 3-beam scan, speed up (overrides fill above)
         {
             "trigger":        "build_last4",
             "cue_type":       "laser_scan",
@@ -247,6 +265,14 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "drop": [
+        # Full-section sustained wash ensures the room stays lit between pulses
+        {
+            "trigger":        "section_start",
+            "cue_type":       "wash",
+            "target_groups":  [GROUP_WASH_ALL],
+            "fill_section":   True,
+            "params": {"color": "drop_red", "intensity": 0.25, "fade_in": 0.0},
+        },
         {
             "trigger":        "section_start",
             "cue_type":       "strobe_hit",
@@ -289,12 +315,12 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 1.0, "pattern": "fast_pan"},
         },
-        # Laser: full RGB chase at section start — maximum impact
+        # Laser: full RGB chase that sustains the entire drop
         {
             "trigger":        "section_start",
             "cue_type":       "laser_chase",
             "target_groups":  [GROUP_LASERS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {
                 "colors":      ["laser_red", "laser_green", "laser_blue", "laser_white"],
                 "beam_count":  6,
@@ -333,18 +359,26 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "breakdown": [
+        # Sustained low ambient wash — section stays lit throughout
+        {
+            "trigger":        "section_start",
+            "cue_type":       "wash",
+            "target_groups":  [GROUP_WASH_ALL],
+            "fill_section":   True,
+            "params": {"color": "breakdown_teal", "intensity": 0.15, "fade_in": 2.0},
+        },
         {
             "trigger":       "section_start",
             "cue_type":      "fade_out",
-            "target_groups": [GROUP_WASH_ALL, GROUP_SPOTS, GROUP_STROBE],
+            "target_groups": [GROUP_SPOTS, GROUP_STROBE],
             "duration_sec":  2.0,
-            "params": {"target_intensity": 0.15, "fade_time": 2.0},
+            "params": {"target_intensity": 0.0, "fade_time": 2.0},
         },
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
             "target_groups":  [GROUP_MOVING_HEADS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {"speed": 0.15, "pattern": "slow_drift"},
         },
         {
@@ -354,12 +388,12 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 8.0,
             "params": {"color": "breakdown_teal", "intensity": 0.20, "fade_in": 1.5},
         },
-        # Laser: single static beam, low intensity — atmospheric hold
+        # Laser: single atmospheric beam that holds for the full section
         {
             "trigger":       "section_start",
             "cue_type":      "laser_static",
             "target_groups": [GROUP_LASERS],
-            "duration_sec":  4.0,
+            "fill_section":  True,
             "params": {
                 "color":      "laser_blue",
                 "pattern":    "single",
@@ -372,11 +406,19 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "outro": [
+        # Sustained low wash covers full outro — fades via bar-level linear_fade
+        {
+            "trigger":        "section_start",
+            "cue_type":       "wash",
+            "target_groups":  [GROUP_WASH_ALL, GROUP_BACK_WASH],
+            "fill_section":   True,
+            "params": {"color": "outro_blue", "intensity": 0.30, "fade_in": 1.0},
+        },
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
             "target_groups":  [GROUP_MOVING_HEADS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {"speed": 0.10, "pattern": "slow_drift"},
         },
         {
@@ -386,17 +428,17 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {
                 "color":           "outro_blue",
-                "intensity_start": 0.40,
+                "intensity_start": 0.30,
                 "intensity_end":   0.0,
                 "_linear_fade":    True,
             },
         },
-        # Laser fades out with the rest of the rig
+        # Laser: slow single-beam scan that sustains the full outro
         {
             "trigger":        "section_start",
             "cue_type":       "laser_scan",
             "target_groups":  [GROUP_LASERS],
-            "duration_beats": 4.0,
+            "fill_section":   True,
             "params": {
                 "color":      "laser_blue",
                 "speed":      0.10,
@@ -405,6 +447,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "intensity":  0.20,
             },
         },
+        # Progressive laser-off starting mid-outro (every bar)
         {
             "trigger":        "bar_beat_1",
             "cue_type":       "laser_off",

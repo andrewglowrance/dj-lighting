@@ -10,6 +10,11 @@ colors, densities, and movement parameters are affected.
 
 StylePatch is a sparse overlay used by the revision flow: any field left as
 None means "keep the current value unchanged".
+
+Advanced field groups (AdvancedLaserFields, AdvancedLightFields) encode
+finer-grained rendering parameters derived from the reference dataset:
+geometric plane orientation, beam edge hardness, temporal behavior modes,
+spatial zone routing, audience reveal strength, and color separation modes.
 """
 
 from __future__ import annotations
@@ -50,6 +55,110 @@ LaserMovementMechanic = Literal[
     "center_converge",       # all beams converge to a single mid-air point
     "symmetrical_mirror",    # left and right sides mirror each other perfectly
 ]
+
+# Advanced vocabulary from the annotated reference dataset
+LaserPlaneOrientation = Literal["horizontal", "diagonal", "vertical", "mixed"]
+LaserTemporalBehavior = Literal["hold", "pulse", "sweep", "alternate", "burst"]
+LightTemporalBehavior = Literal["hold", "fade", "pulse", "chase", "reveal"]
+MovementTransitionSpeed = Literal["snap", "fast", "medium", "slow"]
+SpatialZone = Literal["upper_truss", "mid_stage", "floor_emitters", "side_emitters"]
+ColorSeparationMode = Literal["single", "upper_lower_split", "left_right_split", "mixed"]
+
+
+# ---------------------------------------------------------------------------
+# Advanced field groups (reference-dataset derived)
+# ---------------------------------------------------------------------------
+
+class AdvancedLaserFields(BaseModel):
+    """
+    Finer-grained laser rendering parameters extracted from the annotated
+    reference dataset.  These drive the frontend renderer — they do not alter
+    cue timing.
+    """
+    # Geometry
+    laser_plane_orientation: LaserPlaneOrientation = Field(
+        "horizontal",
+        description="Dominant plane of the laser fan: horizontal sheet, diagonal rake, vertical curtain, or mixed",
+    )
+    laser_open_angle_degrees: float = Field(
+        45.0, ge=0.0, le=180.0,
+        description="Estimated total fan opening angle in degrees across all active beams",
+    )
+    spatial_zone_usage: list[SpatialZone] = Field(
+        default_factory=lambda: ["upper_truss", "floor_emitters"],
+        description="Which physical zones are actively emitting beams",
+    )
+
+    # Beam appearance
+    beam_edge_hardness: float = Field(
+        0.70, ge=0.0, le=1.0,
+        description="0 = soft, diffuse beam edge (scatter); 1 = hard knife-edge (sharp)",
+    )
+    bloom_radius_estimate: float = Field(
+        0.30, ge=0.0, le=1.0,
+        description="Bloom / glow halo radius around beams (0 = none, 1 = maximum)",
+    )
+    haze_density_estimate: float = Field(
+        0.50, ge=0.0, le=1.0,
+        description="Effective haze density in beam path; drives beam shaft visibility",
+    )
+
+    # Visibility
+    source_legibility_score: float = Field(
+        0.70, ge=0.0, le=1.0,
+        description="How clearly the emitter origin point is visible to the audience",
+    )
+    audience_reveal_strength: float = Field(
+        0.50, ge=0.0, le=1.0,
+        description="Degree to which beams sweep into audience space (audience rake effect)",
+    )
+    screen_visibility_strength: float = Field(
+        0.50, ge=0.0, le=1.0,
+        description="Degree to which beams are legible against the stage backdrop",
+    )
+
+    # Temporal / motion
+    laser_temporal_behavior: LaserTemporalBehavior = Field(
+        "sweep",
+        description="How beams behave over time: hold, pulse, sweep, alternate, or burst",
+    )
+    movement_transition_speed: MovementTransitionSpeed = Field(
+        "medium",
+        description="Speed at which the laser transitions between positions or patterns",
+    )
+
+    # Color layout
+    color_separation_mode: ColorSeparationMode = Field(
+        "single",
+        description="How colors are spatially distributed: single, upper/lower split, left/right split, mixed",
+    )
+
+
+class AdvancedLightFields(BaseModel):
+    """
+    Advanced parameters for conventional fixture (wash, moving head, strobe)
+    temporal rendering.  Mirrors AdvancedLaserFields for non-laser sources.
+    """
+    light_temporal_behavior: LightTemporalBehavior = Field(
+        "hold",
+        description="How conventional lights behave over time: hold, fade, pulse, chase, or reveal",
+    )
+    movement_transition_speed: MovementTransitionSpeed = Field(
+        "medium",
+        description="Speed at which moving heads transition between positions",
+    )
+    spatial_zone_usage: list[SpatialZone] = Field(
+        default_factory=lambda: ["upper_truss"],
+        description="Which physical zones are producing light output",
+    )
+    bloom_radius_estimate: float = Field(
+        0.20, ge=0.0, le=1.0,
+        description="Bloom radius for wash fixtures (0 = tight beam, 1 = heavy bloom)",
+    )
+    audience_reveal_strength: float = Field(
+        0.40, ge=0.0, le=1.0,
+        description="How aggressively wash beams spill into audience space",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +285,10 @@ class StyleProfile(BaseModel):
     section_emphasis:   SectionEmphasis   = Field(default_factory=SectionEmphasis)
     laser_profile:      LaserProfile      = Field(default_factory=LaserProfile)
 
+    # Advanced rendering fields (reference-dataset derived)
+    advanced_laser:  AdvancedLaserFields = Field(default_factory=AdvancedLaserFields)
+    advanced_light:  AdvancedLightFields = Field(default_factory=AdvancedLightFields)
+
     # Provenance
     prompt_source: str | None         = Field(None, description="Original prompt text")
     notes:         list[str]          = Field(default_factory=list,
@@ -246,6 +359,27 @@ class StylePatch(BaseModel):
     laser_layer_upper_pal:  str  | None = None
     laser_layer_lower_pal:  str  | None = None
     laser_emission_zones:   list[str] | None = None
+
+    # Advanced laser fields (reference-dataset derived)
+    adv_laser_plane:          str   | None = None   # LaserPlaneOrientation
+    adv_laser_open_angle:     float | None = None
+    adv_laser_spatial_zones:  list[str] | None = None   # list[SpatialZone]
+    adv_laser_edge_hardness:  float | None = None
+    adv_laser_bloom:          float | None = None
+    adv_laser_haze_density:   float | None = None
+    adv_laser_src_legibility: float | None = None
+    adv_laser_audience_rev:   float | None = None
+    adv_laser_screen_vis:     float | None = None
+    adv_laser_temporal:       str   | None = None   # LaserTemporalBehavior
+    adv_laser_transition_spd: str   | None = None   # MovementTransitionSpeed
+    adv_laser_color_sep:      str   | None = None   # ColorSeparationMode
+
+    # Advanced light fields (reference-dataset derived)
+    adv_light_temporal:       str   | None = None   # LightTemporalBehavior
+    adv_light_transition_spd: str   | None = None   # MovementTransitionSpeed
+    adv_light_spatial_zones:  list[str] | None = None
+    adv_light_bloom:          float | None = None
+    adv_light_audience_rev:   float | None = None
 
     # Revision notes (filled in by apply_patch)
     changed_fields: list[str] = Field(default_factory=list)

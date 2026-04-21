@@ -112,6 +112,8 @@ def generate_cues(
 
             def _duration(beat_t: float = beat_duration) -> float:
                 """Resolve duration from rule spec, in seconds."""
+                if rule.get("fill_section"):
+                    return max(section.end - section.start, 0.1)
                 if "duration_sec" in rule:
                     return float(rule["duration_sec"])
                 beats = rule.get("duration_beats", 1.0)
