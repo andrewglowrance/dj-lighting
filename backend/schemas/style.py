@@ -1,0 +1,176 @@
+"""
+schemas/style.py
+
+Pydantic v2 models for the style-profile system.
+
+A StyleProfile is a structured representation of the user's visual intent.
+It sits between the music-derived CueOutputSchema and the final rendered
+visualization payload.  The cue timing is never modified — only intensities,
+colors, densities, and movement parameters are affected.
+
+StylePatch is a sparse overlay used by the revision flow: any field left as
+None means "keep the current value unchanged".
+"""
+
+from __future__ import annotations
+from typing import Literal
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Sub-profiles
+# ---------------------------------------------------------------------------
+
+class BrightnessProfile(BaseModel):
+    """Per-section intensity multipliers stacked on top of global_scale."""
+    global_scale:      float = Field(1.0, ge=0.0, le=2.0,
+                                     description="Master brightness multiplier applied to all sections")
+    intro_scale:       float = Field(0.60, ge=0.0, le=2.0)
+    build_scale:       float = Field(0.80, ge=0.0, le=2.0)
+    drop_scale:        float = Field(1.00, ge=0.0, le=2.0)
+    breakdown_scale:   float = Field(0.40, ge=0.0, le=2.0)
+    outro_scale:       float = Field(0.50, ge=0.0, le=2.0)
+
+
+class MovementProfile(BaseModel):
+    enabled:           bool  = True
+    speed_scale:       float = Field(1.0,  ge=0.0, le=3.0,
+                                     description="Multiplier on movement_enable speed params")
+    range_scale:       float = Field(1.0,  ge=0.0, le=2.0,
+                                     description="Multiplier on laser scan_angle / sweep range")
+    transition_style:  Literal["snap", "fade", "auto"] = "auto"
+
+
+class StrobeProfile(BaseModel):
+    enabled:           bool  = True
+    intensity_scale:   float = Field(1.0, ge=0.0, le=2.0)
+    rate_scale:        float = Field(1.0, ge=0.0, le=2.0)
+    restrict_to_drops: bool  = False
+
+
+class AtmosphereProfile(BaseModel):
+    style:       Literal["dark", "warm", "cinematic", "neutral", "festival"] = "neutral"
+    fade_speed:  Literal["slow", "medium", "fast"] = "medium"
+    fog_density: float = Field(0.5, ge=0.0, le=1.0)
+
+
+class SectionEmphasis(BaseModel):
+    """Weight multipliers that scale section-level brightness and density."""
+    intro_weight:     float = Field(1.0, ge=0.0, le=2.0)
+    build_weight:     float = Field(1.0, ge=0.0, le=2.0)
+    drop_weight:      float = Field(1.0, ge=0.0, le=2.0)
+    breakdown_weight: float = Field(1.0, ge=0.0, le=2.0)
+    outro_weight:     float = Field(1.0, ge=0.0, le=2.0)
+
+
+class LaserProfile(BaseModel):
+    enabled:           bool  = True
+    density:           float = Field(0.70, ge=0.0, le=1.0,
+                                     description="Fraction of laser cues retained [0=none, 1=all]")
+    intensity_scale:   float = Field(1.0,  ge=0.0, le=2.0)
+    palette:           Literal["rgb", "cool", "warm", "green_only",
+                               "red_only", "white_only", "auto"] = "auto"
+    movement_speed:    float = Field(1.0,  ge=0.0, le=3.0)
+    movement_range:    float = Field(1.0,  ge=0.0, le=2.0)
+    fan_width_scale:   float = Field(1.0,  ge=0.0, le=2.0,
+                                     description="Multiplier on spread_deg for fan patterns")
+    restrict_to_drops: bool  = False
+    chase_intensity:   float = Field(1.0,  ge=0.0, le=2.0)
+
+
+# ---------------------------------------------------------------------------
+# Top-level StyleProfile
+# ---------------------------------------------------------------------------
+
+class StyleProfile(BaseModel):
+    """
+    Complete style specification derived from a user prompt (or defaults).
+    Every field here drives the style engine — never the cue timing.
+    """
+
+    # Global feel knobs (0–1 scales)
+    aggressiveness:      float = Field(0.50, ge=0.0, le=1.0,
+                                       description="0=gentle, 1=maximal intensity")
+    smoothness:          float = Field(0.50, ge=0.0, le=1.0,
+                                       description="0=snappy/hard-cut, 1=slow/flowing")
+    festival_scale_bias: float = Field(0.50, ge=0.0, le=1.0,
+                                       description="0=intimate club, 1=festival mainstage")
+    restraint_level:     float = Field(0.30, ge=0.0, le=1.0,
+                                       description="0=chaotic/dense, 1=minimal/sparse")
+    visual_density:      float = Field(0.70, ge=0.0, le=1.0,
+                                       description="Fraction of high-frequency cues retained")
+
+    # Color
+    palette: Literal["cool", "warm", "neutral", "monochrome", "auto"] = "auto"
+
+    # Sub-profiles
+    brightness_profile: BrightnessProfile = Field(default_factory=BrightnessProfile)
+    movement_profile:   MovementProfile   = Field(default_factory=MovementProfile)
+    strobe_profile:     StrobeProfile     = Field(default_factory=StrobeProfile)
+    atmosphere_profile: AtmosphereProfile = Field(default_factory=AtmosphereProfile)
+    section_emphasis:   SectionEmphasis   = Field(default_factory=SectionEmphasis)
+    laser_profile:      LaserProfile      = Field(default_factory=LaserProfile)
+
+    # Provenance
+    prompt_source: str | None         = Field(None, description="Original prompt text")
+    notes:         list[str]          = Field(default_factory=list,
+                                              description="Human-readable explanation of applied signals")
+
+
+# ---------------------------------------------------------------------------
+# StylePatch — sparse delta for the revision flow
+# ---------------------------------------------------------------------------
+
+class StylePatch(BaseModel):
+    """
+    A sparse set of overrides produced by a revision prompt.
+    None means "no change to this field".
+    Applied on top of the current StyleProfile to produce a new one.
+    """
+    aggressiveness:      float | None = None
+    smoothness:          float | None = None
+    festival_scale_bias: float | None = None
+    restraint_level:     float | None = None
+    visual_density:      float | None = None
+    palette:             str   | None = None
+
+    # Brightness
+    brightness_global_scale:    float | None = None
+    brightness_drop_scale:      float | None = None
+    brightness_build_scale:     float | None = None
+    brightness_breakdown_scale: float | None = None
+    brightness_intro_scale:     float | None = None
+
+    # Movement
+    movement_enabled:    bool  | None = None
+    movement_speed:      float | None = None
+    movement_range:      float | None = None
+
+    # Strobe
+    strobe_enabled:      bool  | None = None
+    strobe_intensity:    float | None = None
+    strobe_drops_only:   bool  | None = None
+
+    # Atmosphere
+    atmosphere_style:    str   | None = None
+    atmosphere_fog:      float | None = None
+
+    # Section emphasis
+    drop_weight:         float | None = None
+    build_weight:        float | None = None
+    breakdown_weight:    float | None = None
+
+    # Laser
+    laser_enabled:       bool  | None = None
+    laser_density:       float | None = None
+    laser_intensity:     float | None = None
+    laser_palette:       str   | None = None
+    laser_movement:      float | None = None
+    laser_range:         float | None = None
+    laser_fan_width:     float | None = None
+    laser_drops_only:    bool  | None = None
+    laser_chase_intens:  float | None = None
+
+    # Revision notes (filled in by apply_patch)
+    changed_fields: list[str] = Field(default_factory=list)
+    notes:          list[str] = Field(default_factory=list)
