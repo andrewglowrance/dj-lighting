@@ -418,13 +418,19 @@ def _apply_note_color(
 ) -> tuple[dict, float | None]:
     """
     If the rule carries use_note_color=True and a BeatNote is available:
-      • Substitute params["color"] with the chromesthetic note-color key.
-      • Scale intensity by RMS energy × chroma intensity so louder / stronger-
-        pitched moments glow brighter and softer moments dim naturally.
 
-    If use_tone_duration=True, also returns a duration override (seconds)
-    equal to tone_duration_beats × beat_t so the wash cue lasts exactly as
-    long as the musical note does.
+      • Sets color = "note_dynamic" (sentinel understood by the frontend).
+      • Adds note_hue and note_brightness to params so the renderer can build
+        a smooth HSL color that stays in the key's color family.
+      • Scales intensity by RMS energy × tonal brightness so loud/stable notes
+        glow at full brightness while soft/unstable notes dim naturally.
+
+    The smoothed_hue field in BeatNote is already EMA-filtered across the
+    melody, so consecutive notes in the same phrase share similar hues instead
+    of jumping across the color wheel.
+
+    If use_tone_duration=True, also returns a duration override equal to
+    tone_duration_beats × beat_t so the wash cue sustains as long as the note.
 
     Returns (updated_params, duration_override_or_None).
     """
@@ -432,25 +438,28 @@ def _apply_note_color(
         return params, None
 
     p = dict(params)
-    # Chromesthetic color substitution
-    p["color"] = _NOTE_COLOR_KEYS[beat_note.dominant_note_index]
 
-    # Intensity shaped by RMS energy and chroma peak strength:
-    #   - rms_energy:       overall loudness at this beat
-    #   - chroma_intensity: how clear / dominant the pitch is
-    # Scale so high-energy, clear notes are full brightness; soft/ambiguous ones dim
-    energy_scale   = 0.45 + 0.55 * beat_note.rms_energy
-    clarity_scale  = 0.60 + 0.40 * beat_note.chroma_intensity
-    combined_scale = energy_scale * clarity_scale   # range ≈ 0.27–1.0
+    # Dynamic color: frontend uses note_hue + note_brightness to build HSL
+    p["color"]            = "note_dynamic"
+    p["note_hue"]         = beat_note.smoothed_hue        # [0, 1] EMA-smoothed
+    p["note_brightness"]  = beat_note.tonal_brightness     # [0, 1] stability × clarity
+
+    # Intensity envelope:
+    #   rms_energy [0,1] → overall loudness
+    #   tonal_brightness → harmonic stability of this note
+    # Range: ≈ 0.25 (very soft + unstable) → 1.0 (full energy + stable tonic)
+    energy_scale  = 0.40 + 0.60 * beat_note.rms_energy
+    tonal_scale   = 0.65 + 0.35 * beat_note.tonal_brightness
+    combined      = energy_scale * tonal_scale
 
     if "intensity" in p:
-        p["intensity"] = round(min(1.0, float(p["intensity"]) * combined_scale), 3)
+        p["intensity"] = round(min(1.0, float(p["intensity"]) * combined), 3)
     if "intensity_start" in p:
         p["intensity_start"] = round(
-            min(1.0, float(p["intensity_start"]) * combined_scale), 3)
+            min(1.0, float(p["intensity_start"]) * combined), 3)
     if "intensity_end" in p:
         p["intensity_end"] = round(
-            min(1.0, float(p["intensity_end"]) * combined_scale), 3)
+            min(1.0, float(p["intensity_end"]) * combined), 3)
 
     # Tone-length duration override
     dur_override: float | None = None

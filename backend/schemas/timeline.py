@@ -92,6 +92,11 @@ class BeatNote(BaseModel):
     onset_strength       → normalized onset salience at this beat [0-1]
     rms_energy           → normalized RMS amplitude at this beat [0-1]
     tone_duration_beats  → estimated number of consecutive beats sharing the same note
+    key_relative_degree  → scale degree relative to song's tonic (0=tonic … 11)
+    smoothed_hue         → EMA-smoothed HSL hue [0, 1] — use this for wash color
+                           (stays within the key's color family; drifts gradually)
+    tonal_brightness     → harmonic stability × chroma clarity [0, 1]
+                           (tonic/5th = bright; tritone/min2 = dim)
     """
     beat_index:          int   = Field(..., ge=0)
     dominant_note_index: int   = Field(..., ge=0, le=11,
@@ -101,6 +106,12 @@ class BeatNote(BaseModel):
     onset_strength:      float = Field(..., ge=0.0, le=1.0)
     rms_energy:          float = Field(..., ge=0.0, le=1.0)
     tone_duration_beats: float = Field(..., ge=0.0)
+    key_relative_degree: int   = Field(0, ge=0, le=11,
+                                       description="Scale degree vs. key tonic")
+    smoothed_hue:        float = Field(0.0, ge=0.0, le=1.0,
+                                       description="EMA-smoothed HSL hue for renderer [0, 1]")
+    tonal_brightness:    float = Field(0.5, ge=0.0, le=1.0,
+                                       description="Harmonic stability × chroma clarity")
 
 
 class DropCandidate(BaseModel):

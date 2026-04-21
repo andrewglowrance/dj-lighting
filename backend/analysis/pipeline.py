@@ -64,10 +64,12 @@ def analyze_track(filepath: str) -> TimelineSchema:
     mood_raw = analyze_mood(y, sr, bpm=bpm_info.bpm)
     mood = MoodAnalysis(**mood_raw)
 
-    # 8 – per-beat note extraction (dominant pitch, energy, tone duration)
+    # 8 – per-beat note extraction (dominant pitch, energy, tone duration,
+    #      key-relative degree, smoothed hue, tonal brightness)
     _NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F",
                    "F#", "G", "G#", "A", "A#", "B"]
-    beat_note_dicts = extract_beat_notes(y, sr, beat_times)
+    beat_note_dicts = extract_beat_notes(
+        y, sr, beat_times, key_index=mood_raw["key_index"])
     beat_notes = [
         BeatNote(
             dominant_note=_NOTE_NAMES[d["dominant_note_index"]],

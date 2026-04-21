@@ -171,6 +171,90 @@ def analyze_mood(y: np.ndarray, sr: int, bpm: float) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Key-relative hue mapping tables
+# ---------------------------------------------------------------------------
+
+# For each of the 12 chromatic scale degrees relative to the tonic,
+# the hue offset applied to the key's base hue (in [0, 1] = full wheel).
+# Design principle: harmonically close intervals (P5=7, M3=4) stay near
+# the tonic hue; the tritone (6) gets the largest shift; semitones drift
+# slightly so adjacent melody notes look similar, not wildly different.
+_DEGREE_HUE_SHIFT: list[float] = [
+    0.00,   # 0  Tonic         — anchor, no shift
+    0.07,   # 1  min2          — tiny warm drift
+    0.12,   # 2  Maj2          — small warm drift
+   -0.10,   # 3  min3          — slight cool shift (darker)
+    0.16,   # 4  Maj3          — warm, consonant chord tone
+    0.21,   # 5  P4            — moderate warm
+    0.38,   # 6  Tritone       — furthest from tonic (complementary-ish)
+    0.04,   # 7  P5            — very close to tonic, slightly warm
+   -0.16,   # 8  min6          — cool/dark
+    0.19,   # 9  Maj6          — analogous warm
+   -0.06,   # 10 min7          — slightly cool
+    0.09,   # 11 Maj7          — small warm, leading tone
+]
+
+# Tonal stability per degree: 1 = fully settled, lower = more tension/colour.
+# Used to scale tonal_brightness so unstable notes look dimmer/cooler.
+_DEGREE_STABILITY: list[float] = [
+    1.00,   # 0  Tonic
+    0.58,   # 1  min2
+    0.80,   # 2  Maj2
+    0.84,   # 3  min3
+    0.90,   # 4  Maj3
+    0.82,   # 5  P4
+    0.55,   # 6  Tritone
+    0.95,   # 7  P5
+    0.76,   # 8  min6
+    0.86,   # 9  Maj6
+    0.72,   # 10 min7
+    0.74,   # 11 Maj7
+]
+
+# Key index (0–11, C=0) → base hue [0, 1].
+# Distributed around the circle-of-fifths so keys a fifth apart share
+# similar hues (warm keys: G, D, A; cool keys: Bb, Eb, Ab; neutral: C, F).
+_KEY_BASE_HUE: list[float] = [
+    0.00,   # C  — red anchor
+    0.57,   # C# — cyan-blue
+    0.08,   # D  — orange-red
+    0.65,   # D# — blue-violet
+    0.14,   # E  — orange
+    0.42,   # F  — green-cyan
+    0.72,   # F# — violet
+    0.20,   # G  — yellow-green
+    0.50,   # G# — cyan
+    0.28,   # A  — green
+    0.78,   # A# — purple
+    0.35,   # B  — teal-green
+]
+
+
+def _smooth_hues(
+    raw_hues: list[float],
+    alpha: float = 0.35,
+) -> list[float]:
+    """
+    Exponential moving average on circular hue values.
+    alpha: weight of new value (0=fully smooth, 1=no smoothing).
+    Handles the 0/1 wraparound by tracking the shortest arc each step.
+    """
+    if not raw_hues:
+        return []
+    smoothed = [raw_hues[0]]
+    for h in raw_hues[1:]:
+        prev = smoothed[-1]
+        diff = h - prev
+        # Choose the shorter arc around the hue circle
+        if diff > 0.5:
+            diff -= 1.0
+        elif diff < -0.5:
+            diff += 1.0
+        smoothed.append(prev + alpha * diff)
+    return smoothed
+
+
+# ---------------------------------------------------------------------------
 # Per-beat note extraction
 # ---------------------------------------------------------------------------
 
@@ -181,11 +265,17 @@ def extract_beat_notes(
     y: np.ndarray,
     sr: int,
     beat_times: np.ndarray,
+    key_index: int = 0,
 ) -> list[dict]:
     """
     For each beat, extract the dominant chromatic note, its intensity, onset
     salience, normalised RMS energy, and an estimate of how many consecutive
     beats share the same dominant pitch class (tone duration).
+
+    Additionally computes three fields that drive smooth, key-coherent color:
+        key_relative_degree  – scale degree relative to song key (0–11)
+        smoothed_hue         – EMA-smoothed hue [0, 1] for wash color
+        tonal_brightness     – harmonic stability × chroma clarity [0, 1]
 
     All heavy computation uses the same hop_length as the rest of the pipeline
     (512) so frame indices are consistent.
@@ -195,16 +285,20 @@ def extract_beat_notes(
     y          : float32 mono audio array
     sr         : sample rate
     beat_times : 1-D float array of beat onset times in seconds
+    key_index  : chromatic pitch class of the detected key (0 = C, …, 11 = B)
 
     Returns
     -------
     list[dict] — one dict per beat with keys:
-        beat_index          int    global beat index (matches Beat.index)
-        dominant_note_index int    chromatic pitch class 0-11  (0 = C)
-        chroma_intensity    float  [0, 1]  strength of the dominant pitch
-        onset_strength      float  [0, 1]  normalised onset salience
-        rms_energy          float  [0, 1]  normalised RMS at this beat
-        tone_duration_beats float  estimated beats the note persists (≥ 1)
+        beat_index           int    global beat index (matches Beat.index)
+        dominant_note_index  int    chromatic pitch class 0-11  (0 = C)
+        chroma_intensity     float  [0, 1]  strength of the dominant pitch
+        onset_strength       float  [0, 1]  normalised onset salience
+        rms_energy           float  [0, 1]  normalised RMS at this beat
+        tone_duration_beats  float  estimated beats the note persists (≥ 1)
+        key_relative_degree  int    scale degree vs. key tonic (0–11)
+        smoothed_hue         float  [0, 1] EMA-smoothed HSL hue for color
+        tonal_brightness     float  [0, 1] harmonic stability × chroma clarity
     """
     import librosa  # lazy — do not move to module level
 
@@ -288,5 +382,28 @@ def extract_beat_notes(
             "rms_energy":          round(rms_norm, 3),
             "tone_duration_beats": round(tone_dur, 1),
         })
+
+    # ── Key-relative hue + EMA smoothing ────────────────────────────────────
+    ki = int(key_index) % 12
+    base_hue = _KEY_BASE_HUE[ki]
+
+    # Raw per-beat hue from key-relative degree
+    raw_hues: list[float] = []
+    for d in result:
+        degree = (d["dominant_note_index"] - ki) % 12
+        raw_hues.append(base_hue + _DEGREE_HUE_SHIFT[degree])
+
+    # EMA-smooth so melodic motion drifts rather than jumping
+    smoothed = _smooth_hues(raw_hues, alpha=0.35)
+
+    # Attach new fields to each entry
+    for i, d in enumerate(result):
+        degree = (d["dominant_note_index"] - ki) % 12
+        stability = _DEGREE_STABILITY[degree]
+        tonal_brightness = float(np.clip(
+            stability * (0.55 + 0.45 * d["chroma_intensity"]), 0.0, 1.0))
+        d["key_relative_degree"] = degree
+        d["smoothed_hue"]        = round(float(smoothed[i]) % 1.0, 4)
+        d["tonal_brightness"]    = round(tonal_brightness, 3)
 
     return result

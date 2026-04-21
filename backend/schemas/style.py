@@ -145,7 +145,7 @@ class EnvironmentRenderingProfile(BaseModel):
     # ── Geometry visibility flags ────────────────────────────────────────────
     show_stage_plane:          bool  = Field(True,  description="Render the stage floor plane")
     show_dj_booth_silhouette:  bool  = Field(True,  description="Render the DJ booth silhouette mesh")
-    show_audience_band:        bool  = Field(True,  description="Render an audience zone at the back")
+    show_audience_band:        bool  = Field(False, description="Render an audience zone at the back")
     show_fixture_emitters:     bool  = Field(True,  description="Render visible emitter discs on fixtures")
     show_truss_lines:          bool  = Field(True,  description="Render truss pipe geometry")
     show_led_wall_blocks:      bool  = Field(True,  description="Render LED wall block grid on stage backdrop")
