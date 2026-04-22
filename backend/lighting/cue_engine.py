@@ -57,6 +57,11 @@ _NOTE_COLOR_KEYS: list[str] = [
     "note_Gs","note_A",  "note_As","note_B",
 ]
 
+# Global brightness multiplier applied as a final post-processing pass.
+# Value of 1.5 raises every cue's intensity by 50 % (capped at 1.0).
+# Change here to tune overall show luminosity without touching per-rule values.
+_GLOBAL_INTENSITY_SCALE: float = 1.5
+
 if TYPE_CHECKING:
     from backend.lighting.rig_loader import RigTemplate
 
@@ -339,11 +344,18 @@ def generate_cues(
     if template is not None:
         cues = _apply_constraints(cues, template)
 
+    # Global brightness boost: lift every intensity field by _GLOBAL_INTENSITY_SCALE
+    # (capped at 1.0). Applied after all per-cue energy scaling so the boost is
+    # additive on top of the music-reactive values rather than competing with them.
+    cues = [_apply_global_brightness(c, _GLOBAL_INTENSITY_SCALE) for c in cues]
+
     return CueOutputSchema(
         bpm=timeline.bpm.bpm,
         total_duration_sec=timeline.metadata.duration_sec,
         total_cues=len(cues),
         cues=cues,
+        brightness_multiplier=_GLOBAL_INTENSITY_SCALE,
+        audience_fill=True,
     )
 
 
@@ -456,6 +468,28 @@ def _resolve_groups(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _apply_global_brightness(cue: Cue, scale: float) -> Cue:
+    """
+    Multiply every intensity-related field in cue.parameters by *scale*,
+    capped at 1.0. Returns the original cue object unchanged if no intensity
+    fields are present (avoids needless object creation).
+
+    Fields scaled:
+        intensity, intensity_start, intensity_end, target_intensity
+    """
+    _INTENSITY_KEYS = ("intensity", "intensity_start", "intensity_end", "target_intensity")
+    params = cue.parameters
+    if not any(k in params for k in _INTENSITY_KEYS):
+        return cue
+
+    updated: dict = dict(params)
+    for k in _INTENSITY_KEYS:
+        if k in updated:
+            updated[k] = round(min(1.0, float(updated[k]) * scale), 3)
+
+    return cue.model_copy(update={"parameters": updated})
+
 
 def _bpm_scale(bpm: float) -> float:
     """

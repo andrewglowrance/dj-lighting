@@ -72,3 +72,22 @@ class CueOutputSchema(BaseModel):
     total_duration_sec: float = Field(..., ge=0)
     total_cues: int = Field(..., ge=0)
     cues: list[Cue]
+
+    # Rendering hints consumed by the frontend visualizer
+    brightness_multiplier: float = Field(
+        1.5,
+        ge=0.1,
+        le=5.0,
+        description=(
+            "Global luminosity scale applied by the renderer on top of per-cue "
+            "intensity values. 1.5 = 50%% brighter than the nominal rule values."
+        ),
+    )
+    audience_fill: bool = Field(
+        True,
+        description=(
+            "When True the renderer should project wash/beam fixtures toward the "
+            "audience area in addition to the stage, extending light coverage "
+            "into the crowd."
+        ),
+    )

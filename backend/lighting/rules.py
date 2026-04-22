@@ -152,11 +152,12 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "intro": [
-        # Sustained ambient wash that covers the full intro — no dark gaps
+        # Sustained ambient wash that covers the full intro — no dark gaps.
+        # back_wash is audience-facing: keeps the crowd lit from the start.
         {
             "trigger":       "section_start",
             "cue_type":      "wash",
-            "target_groups": [GROUP_WASH_ALL],
+            "target_groups": [GROUP_WASH_ALL, GROUP_BACK_WASH],
             "fill_section":  True,
             "params": {"color": "cool_blue", "intensity": 0.20, "fade_in": 2.0},
         },
@@ -192,11 +193,12 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "build": [
-        # Sustained low-level wash fills the section between pulses
+        # Sustained low-level wash fills the section between pulses.
+        # Including back_wash keeps audience illuminated as tension rises.
         {
             "trigger":        "section_start",
             "cue_type":       "wash",
-            "target_groups":  [GROUP_WASH_ALL],
+            "target_groups":  [GROUP_WASH_ALL, GROUP_BACK_WASH],
             "fill_section":   True,
             "params": {"color": "warm_amber", "intensity": 0.22, "fade_in": 0.5},
         },
@@ -229,6 +231,15 @@ SECTION_RULES: dict[str, list[dict]] = {
             "target_groups":  [GROUP_WASH_ALL],
             "duration_beats": 0.25,
             "params": {"color": "_build_cycle", "transition": "snap"},
+        },
+        # Strobe on beats 2 & 4 throughout the build — energy scaling keeps it
+        # subtle at the start and aggressive in the last bars before the drop.
+        {
+            "trigger":        "beat_2_4",
+            "cue_type":       "strobe_hit",
+            "target_groups":  [GROUP_STROBE],
+            "duration_beats": 0.10,
+            "params": {"intensity": 0.45},
         },
         {
             "trigger":        "build_last4",
@@ -320,8 +331,17 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.50,
             "params": {"color": "drop_red", "intensity": 0.90},
         },
-        # Back wash on beats 2&4 tracks the note being played — adds harmonic
-        # color variation over the fixed drop_red main wash
+        # Strobe on every beat during the drop — the main high-energy strobe effect.
+        # Energy scaling drives it from ~0.45 at lower moments to 0.75+ at peaks.
+        {
+            "trigger":        "beat",
+            "cue_type":       "strobe_hit",
+            "target_groups":  [GROUP_STROBE],
+            "duration_beats": 0.08,
+            "params": {"intensity": 0.70},
+        },
+        # Back wash on beats 2&4 — note color + audience fill simultaneously.
+        # Also adds a brighter strobe flash on those accented beats.
         {
             "trigger":        "beat_2_4",
             "cue_type":       "pulse",
@@ -330,6 +350,14 @@ SECTION_RULES: dict[str, list[dict]] = {
             "use_tone_duration": True,
             "duration_beats": 0.50,
             "params": {"color": "drop_yellow", "intensity": 0.80},
+        },
+        # Accent strobe on beats 2 & 4 — brighter burst on the snare hits
+        {
+            "trigger":        "beat_2_4",
+            "cue_type":       "strobe_hit",
+            "target_groups":  [GROUP_STROBE, GROUP_WASH_ALL],
+            "duration_beats": 0.08,
+            "params": {"intensity": 1.0},
         },
         {
             "trigger":        "bar_2_beat_1",
@@ -400,11 +428,12 @@ SECTION_RULES: dict[str, list[dict]] = {
 
     # -----------------------------------------------------------------------
     "breakdown": [
-        # Sustained low ambient wash — section stays lit throughout
+        # Sustained low ambient wash — section stays lit throughout.
+        # back_wash keeps the audience bathed in ambient teal during the quiet moment.
         {
             "trigger":        "section_start",
             "cue_type":       "wash",
-            "target_groups":  [GROUP_WASH_ALL],
+            "target_groups":  [GROUP_WASH_ALL, GROUP_BACK_WASH],
             "fill_section":   True,
             "params": {"color": "breakdown_teal", "intensity": 0.15, "fade_in": 2.0},
         },
@@ -426,11 +455,20 @@ SECTION_RULES: dict[str, list[dict]] = {
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "wash",
-            "target_groups":  [GROUP_WASH_ALL],
+            "target_groups":  [GROUP_WASH_ALL, GROUP_BACK_WASH],
             "use_note_color": True,
             "use_tone_duration": True,
             "duration_beats": 8.0,
             "params": {"color": "breakdown_teal", "intensity": 0.18, "fade_in": 1.5},
+        },
+        # Very subtle strobe flash every 4 bars — just enough to keep tension alive.
+        # Energy scaling will suppress it further in the quietest moments.
+        {
+            "trigger":        "bar_4_beat_1",
+            "cue_type":       "strobe_hit",
+            "target_groups":  [GROUP_STROBE],
+            "duration_beats": 0.10,
+            "params": {"intensity": 0.15},
         },
         # Laser: single atmospheric beam that holds for the full section
         {
