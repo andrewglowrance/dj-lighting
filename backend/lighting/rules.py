@@ -161,12 +161,14 @@ SECTION_RULES: dict[str, list[dict]] = {
             "params": {"color": "cool_blue", "intensity": 0.20, "fade_in": 2.0},
         },
         # Gentle slow movement — adds depth without distracting
+        # Base speed is the 120-BPM / full-energy target; engine scales it down
+        # for quieter/slower passages via _apply_energy_scale.
         {
             "trigger":        "section_start",
             "cue_type":       "movement_enable",
             "target_groups":  [GROUP_MOVING_HEADS],
             "fill_section":   True,
-            "params": {"speed": 0.12, "pattern": "slow_drift"},
+            "params": {"speed": 0.18, "pattern": "slow_drift"},
         },
         # Note-responsive pulse: color and intensity track the dominant pitch
         {
@@ -203,7 +205,7 @@ SECTION_RULES: dict[str, list[dict]] = {
             "cue_type":       "movement_enable",
             "target_groups":  [GROUP_MOVING_HEADS],
             "fill_section":   True,
-            "params": {"speed": 0.40, "pattern": "sweep"},
+            "params": {"speed": 0.60, "pattern": "sweep"},
         },
         # Note-responsive beat pulse: hue tracks dominant pitch, intensity ramps +
         # scales with the beat's RMS energy; duration stretches to note length
@@ -242,7 +244,8 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "pure_white", "transition": "snap"},
         },
-        # Laser: slow single-beam scan that sustains the whole build
+        # Laser: slow single-beam scan that sustains the whole build.
+        # Base values are the 120-BPM / full-energy targets; engine scales them.
         {
             "trigger":        "section_start",
             "cue_type":       "laser_scan",
@@ -250,13 +253,13 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {
                 "color":      "laser_green",
-                "speed":      0.25,
-                "fan_count":  1,
-                "spread_deg": 10,
-                "intensity":  0.60,
+                "speed":      0.40,
+                "fan_count":  2,
+                "spread_deg": 18,
+                "intensity":  0.65,
             },
         },
-        # Last 4 bars: widen to 3-beam scan, speed up (overrides fill above)
+        # Last 4 bars: widen to multi-beam scan, speed up (overrides fill above)
         {
             "trigger":        "build_last4",
             "cue_type":       "laser_scan",
@@ -264,10 +267,10 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 1.0,
             "params": {
                 "color":      "laser_cyan",
-                "speed":      0.70,
-                "fan_count":  3,
-                "spread_deg": 30,
-                "intensity":  0.85,
+                "speed":      0.85,
+                "fan_count":  4,
+                "spread_deg": 40,
+                "intensity":  0.90,
             },
         },
         # Pre-drop: laser snaps to white static fan — anticipation hit
@@ -335,6 +338,15 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "_drop_cycle", "transition": "snap"},
         },
+        # Every bar: brief high-speed pan blast — reacts to each new bar's energy
+        {
+            "trigger":        "bar_beat_1",
+            "cue_type":       "movement_enable",
+            "target_groups":  [GROUP_MOVING_HEADS],
+            "duration_beats": 2.0,
+            "params": {"speed": 1.0, "pattern": "fast_pan"},
+        },
+        # Every 4 bars: override with a full-section sustained fast_pan
         {
             "trigger":        "bar_4_beat_1",
             "cue_type":       "movement_enable",
@@ -342,7 +354,9 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 1.0, "pattern": "fast_pan"},
         },
-        # Laser: full RGB chase that sustains the entire drop
+        # Laser: full RGB chase that sustains the entire drop.
+        # beam_count is the baseline — energy scaling adds up to +4 more beams.
+        # step_beats is the baseline at 120 BPM — BPM scaling shortens it at higher tempos.
         {
             "trigger":        "section_start",
             "cue_type":       "laser_chase",
@@ -350,8 +364,8 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {
                 "colors":      ["laser_red", "laser_green", "laser_blue", "laser_white"],
-                "beam_count":  6,
-                "step_beats":  0.25,
+                "beam_count":  4,
+                "step_beats":  0.50,
                 "intensity":   1.0,
             },
         },

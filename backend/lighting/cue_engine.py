@@ -82,6 +82,9 @@ def generate_cues(
     """
     beat_duration = 60.0 / timeline.bpm.bpm
 
+    # BPM normaliser — used to scale laser speed / movement throughout the show
+    bpm_s = _bpm_scale(timeline.bpm.bpm)
+
     # Pre-build fast lookup structures
     bar_map: dict[int, Bar] = {b.index: b for b in timeline.bars}
     beat_map: dict[int, Beat] = {b.index: b for b in timeline.beats}
@@ -103,6 +106,9 @@ def generate_cues(
         rules = SECTION_RULES.get(section.label, [])
         if not rules:
             continue
+
+        # Section-level energy — used for macro scaling (spread, beam count, etc.)
+        section_energy: float = float(section.energy_mean)
 
         # Beats and bars that fall within this section's time range
         section_beats = [
@@ -133,6 +139,10 @@ def generate_cues(
 
             # ----------------------------------------------------------
             if trigger == "section_start":
+                resolved = _resolve_params(
+                    params_template, beat_idx=0, n_beats=1, bar_idx=0, n_bars=1)
+                resolved = _apply_energy_scale(
+                    resolved, cue_type, bpm_s, section_energy, section_energy)
                 cues.append(_make_cue(
                     id=next_id(),
                     time=section.start,
@@ -141,7 +151,7 @@ def generate_cues(
                     section=section.label,
                     trigger=trigger,
                     target_groups=target_groups,
-                    params=_resolve_params(params_template, beat_idx=0, n_beats=1, bar_idx=0, n_bars=1),
+                    params=resolved,
                 ))
 
             # ----------------------------------------------------------
@@ -152,6 +162,10 @@ def generate_cues(
                     beat_note = beat_note_map.get(beat.index)
                     resolved, dur_override = _apply_note_color(
                         resolved, rule, beat_note, beat_duration)
+                    beat_energy = (
+                        beat_note.rms_energy if beat_note else section_energy)
+                    resolved = _apply_energy_scale(
+                        resolved, cue_type, bpm_s, section_energy, beat_energy)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=beat.time,
@@ -171,6 +185,10 @@ def generate_cues(
                         beat_note = beat_note_map.get(beat.index)
                         resolved, dur_override = _apply_note_color(
                             resolved, rule, beat_note, beat_duration)
+                        beat_energy = (
+                            beat_note.rms_energy if beat_note else section_energy)
+                        resolved = _apply_energy_scale(
+                            resolved, cue_type, bpm_s, section_energy, beat_energy)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=beat.time,
@@ -189,9 +207,16 @@ def generate_cues(
                         params_template, bar_idx=j, n_bars=n_bars)
                     # Use the bar's downbeat note (first beat of this bar)
                     first_beat_idx = bar.beat_indices[0] if bar.beat_indices else None
-                    beat_note = beat_note_map.get(first_beat_idx) if first_beat_idx is not None else None
+                    beat_note = (
+                        beat_note_map.get(first_beat_idx)
+                        if first_beat_idx is not None else None
+                    )
                     resolved, dur_override = _apply_note_color(
                         resolved, rule, beat_note, beat_duration)
+                    beat_energy = (
+                        beat_note.rms_energy if beat_note else section_energy)
+                    resolved = _apply_energy_scale(
+                        resolved, cue_type, bpm_s, section_energy, beat_energy)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=bar.time,
@@ -215,9 +240,16 @@ def generate_cues(
                             cycle_list=DROP_COLOR_CYCLE,
                         )
                         first_beat_idx = bar.beat_indices[0] if bar.beat_indices else None
-                        beat_note = beat_note_map.get(first_beat_idx) if first_beat_idx is not None else None
+                        beat_note = (
+                            beat_note_map.get(first_beat_idx)
+                            if first_beat_idx is not None else None
+                        )
                         resolved, dur_override = _apply_note_color(
                             resolved, rule, beat_note, beat_duration)
+                        beat_energy = (
+                            beat_note.rms_energy if beat_note else section_energy)
+                        resolved = _apply_energy_scale(
+                            resolved, cue_type, bpm_s, section_energy, beat_energy)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=bar.time,
@@ -233,6 +265,15 @@ def generate_cues(
             elif trigger == "bar_4_beat_1":
                 for j, bar in enumerate(section_bars):
                     if j % 4 == 0:
+                        resolved = _resolve_params(
+                            params_template,
+                            bar_idx=j,
+                            n_bars=n_bars,
+                            cycle_idx=j // 4,
+                            cycle_list=BUILD_COLOR_CYCLE,
+                        )
+                        resolved = _apply_energy_scale(
+                            resolved, cue_type, bpm_s, section_energy, section_energy)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=bar.time,
@@ -241,13 +282,7 @@ def generate_cues(
                             section=section.label,
                             trigger=trigger,
                             target_groups=target_groups,
-                            params=_resolve_params(
-                                params_template,
-                                bar_idx=j,
-                                n_bars=n_bars,
-                                cycle_idx=j // 4,
-                                cycle_list=BUILD_COLOR_CYCLE,
-                            ),
+                            params=resolved,
                         ))
 
             # ----------------------------------------------------------
@@ -258,6 +293,12 @@ def generate_cues(
                 )
                 for beat in section_beats:
                     if beat.bar_index >= last4_start_idx and beat.beat_in_bar in (0, 2):
+                        beat_note = beat_note_map.get(beat.index)
+                        beat_energy = (
+                            beat_note.rms_energy if beat_note else section_energy)
+                        resolved = _resolve_params(params_template)
+                        resolved = _apply_energy_scale(
+                            resolved, cue_type, bpm_s, section_energy, beat_energy)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=beat.time,
@@ -266,7 +307,7 @@ def generate_cues(
                             section=section.label,
                             trigger=trigger,
                             target_groups=target_groups,
-                            params=_resolve_params(params_template),
+                            params=resolved,
                         ))
 
             # ----------------------------------------------------------
@@ -274,6 +315,12 @@ def generate_cues(
                 # Last beat of the section
                 if section_beats:
                     last_beat = section_beats[-1]
+                    beat_note = beat_note_map.get(last_beat.index)
+                    beat_energy = (
+                        beat_note.rms_energy if beat_note else section_energy)
+                    resolved = _resolve_params(params_template)
+                    resolved = _apply_energy_scale(
+                        resolved, cue_type, bpm_s, section_energy, beat_energy)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=last_beat.time,
@@ -282,7 +329,7 @@ def generate_cues(
                         section=section.label,
                         trigger=trigger,
                         target_groups=target_groups,
-                        params=_resolve_params(params_template),
+                        params=resolved,
                     ))
 
     # Sort by time, then by cue_id as a stable tiebreaker
@@ -409,6 +456,97 @@ def _resolve_groups(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _bpm_scale(bpm: float) -> float:
+    """
+    Normalise BPM against a 120 BPM baseline.
+
+    Returns a multiplier in [0.4, 2.5]:
+        80 BPM  → 0.67  (slower, more restrained)
+       120 BPM  → 1.00  (reference)
+       150 BPM  → 1.25
+       180 BPM  → 1.50  (very fast, highly energetic)
+    """
+    return float(min(max(bpm / 120.0, 0.4), 2.5))
+
+
+def _apply_energy_scale(
+    params: dict,
+    cue_type: str,
+    bpm_s: float,
+    section_energy: float,
+    beat_energy: float,
+) -> dict:
+    """
+    Scale cue parameters by BPM and musical energy so the show responds
+    dynamically to the song's intensity.
+
+    bpm_s          – _bpm_scale(bpm): BPM / 120.0 in [0.4, 2.5]
+    section_energy – section.energy_mean  [0, 1]  (macro loudness of the section)
+    beat_energy    – beat rms_energy or section_energy fallback  [0, 1]
+
+    Strategy by cue type:
+      movement_enable  → speed   scales with BPM × section energy
+      laser_scan       → speed   scales with BPM × beat energy;
+                          spread_deg and fan_count expand with section energy
+      laser_static     → spread_deg and fan_count expand with section energy
+      laser_chase      → step_beats shortens with BPM (faster stepping at high BPM);
+                          beam_count increases with section energy
+      wash / pulse     → intensity scales with beat energy (skip if note_dynamic)
+      strobe_hit       → intensity scales with beat energy (skip if note_dynamic)
+
+    note_dynamic intensity is already scaled by _apply_note_color; skip to avoid
+    double-scaling. Laser/movement speed is ALWAYS scaled so the whole show
+    responds to tempo even during note-colored passages.
+    """
+    p = dict(params)
+    is_note = (p.get("color") == "note_dynamic")
+
+    if cue_type == "movement_enable":
+        if "speed" in p:
+            spd = float(p["speed"]) * bpm_s * (0.55 + 0.45 * section_energy)
+            p["speed"] = round(min(1.0, spd), 3)
+
+    elif cue_type == "laser_scan":
+        if "speed" in p:
+            spd = float(p["speed"]) * bpm_s * (0.50 + 0.50 * beat_energy)
+            p["speed"] = round(min(1.0, spd), 3)
+        if "spread_deg" in p:
+            p["spread_deg"] = round(
+                float(p["spread_deg"]) * (0.55 + 0.45 * section_energy), 1)
+        if "fan_count" in p:
+            p["fan_count"] = max(1, min(8,
+                int(p["fan_count"]) + int(section_energy * 2.0)))
+
+    elif cue_type == "laser_static":
+        if "spread_deg" in p:
+            p["spread_deg"] = round(
+                float(p["spread_deg"]) * (0.50 + 0.50 * section_energy), 1)
+        if "fan_count" in p:
+            p["fan_count"] = max(1, min(8,
+                int(p["fan_count"]) + int(section_energy * 3.0)))
+
+    elif cue_type == "laser_chase":
+        if "step_beats" in p:
+            # Faster BPM → shorter step interval (more rapid color cycling)
+            p["step_beats"] = round(max(0.125, float(p["step_beats"]) / bpm_s), 3)
+        if "beam_count" in p:
+            p["beam_count"] = max(2, min(12,
+                int(p["beam_count"]) + int(section_energy * 4.0)))
+
+    elif cue_type in ("wash", "pulse") and not is_note:
+        e_mult = 0.35 + 0.65 * beat_energy
+        for k in ("intensity", "intensity_start", "intensity_end"):
+            if k in p:
+                p[k] = round(min(1.0, float(p[k]) * e_mult), 3)
+
+    elif cue_type == "strobe_hit" and not is_note:
+        e_mult = 0.25 + 0.75 * beat_energy
+        if "intensity" in p:
+            p["intensity"] = round(min(1.0, float(p["intensity"]) * e_mult), 3)
+
+    return p
+
 
 def _apply_note_color(
     params: dict,

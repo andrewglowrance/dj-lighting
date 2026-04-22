@@ -35,11 +35,11 @@ from backend.schemas.timeline import Bar, Section, SectionLabel
 # ---------------------------------------------------------------------------
 
 _HOP_LENGTH = 512
-_SMOOTHING_WINDOW = 4       # bars to convolve for energy smoothing
+_SMOOTHING_WINDOW = 3       # bars to convolve for energy smoothing (tighter = more reactive)
 _INTRO_OUTRO_ENERGY = 1.10  # factor of median; bars below this qualify as intro/outro
-_DROP_ENERGY_THRESH = 0.65  # normalized energy threshold for a drop
-_DROP_ONSET_THRESH = 0.45   # normalized onset density threshold for a drop
-_BREAKDOWN_ENERGY_THRESH = 0.35  # normalized energy threshold for a breakdown
+_DROP_ENERGY_THRESH = 0.55  # normalized energy threshold for a drop (was 0.65)
+_DROP_ONSET_THRESH = 0.38   # normalized onset density threshold for a drop (was 0.45)
+_BREAKDOWN_ENERGY_THRESH = 0.30  # normalized energy threshold for a breakdown (was 0.35)
 _BUILD_LOOK_AHEAD = 8       # bars ahead to scan for an upcoming drop
 _MAX_INTRO_BARS = 32
 _MAX_OUTRO_BARS = 32
