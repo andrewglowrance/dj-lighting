@@ -47,6 +47,13 @@ from backend.lighting.rules import (
     DROP_COLOR_CYCLE,
     SECTION_RULES,
 )
+from backend.lighting.motion_vocabulary import MOTION_VOCABULARY, get_motions_for_section
+from backend.lighting.diversity_tracker import DiversityTracker
+from backend.lighting.reference_dataset import (
+    get_influential_segments,
+    get_section_realism_priors,
+    get_motion_family_bias,
+)
 from backend.schemas.cues import Cue, CueOutputSchema
 from backend.schemas.timeline import Beat, Bar, BeatNote, Section, TimelineSchema
 
@@ -90,6 +97,16 @@ def generate_cues(
     # BPM normaliser — used to scale laser speed / movement throughout the show
     bpm_s = _bpm_scale(timeline.bpm.bpm)
 
+    # Build a stable fingerprint from BPM + duration for deterministic diversity selection
+    import hashlib as _hl
+    _fp = _hl.md5(
+        f"{timeline.bpm.bpm:.1f}|{timeline.metadata.duration_sec:.1f}".encode()
+    ).hexdigest()[:12]
+    tracker = DiversityTracker(window_size=4, fingerprint=_fp)
+
+    # Per-section choreography log (attached to output for debugging)
+    section_choreography: list[dict] = []
+
     # Pre-build fast lookup structures
     bar_map: dict[int, Bar] = {b.index: b for b in timeline.bars}
     beat_map: dict[int, Beat] = {b.index: b for b in timeline.beats}
@@ -114,6 +131,38 @@ def generate_cues(
 
         # Section-level energy — used for macro scaling (spread, beam count, etc.)
         section_energy: float = float(section.energy_mean)
+
+        # --- Reference-driven motion selection for this section ---
+        _candidates = get_motions_for_section(section.label, section_energy, top_k=8)
+        _bias = get_motion_family_bias(section.label, section_energy, _candidates)
+        _motion_family = tracker.select_motion(
+            _candidates,
+            base_weights=_bias,
+            section_index=section.bar_start,
+            role="main",
+        )
+        _motion = MOTION_VOCABULARY.get(_motion_family)
+
+        # Record for diversity tracking (prevents immediate reuse)
+        tracker.record_section(
+            motion_family=_motion_family,
+            laser_pattern=(_motion.laser_params.get("cue_type") if _motion else None),
+            spatial_zones=(set(_motion.primary_zones) if _motion else None),
+        )
+
+        # Realism priors for this section (attached to output + used by frontend)
+        _realism = get_section_realism_priors(section.label, section_energy)
+
+        # Log for output
+        section_choreography.append({
+            "section_label": section.label,
+            "bar_start":     section.bar_start,
+            "bar_end":       section.bar_end,
+            "motion_family": _motion_family,
+            "section_energy": round(section_energy, 3),
+            "realism_priors": _realism,
+            "candidates":    _candidates[:4],  # top 4 for inspection
+        })
 
         # Beats and bars that fall within this section's time range
         section_beats = [
@@ -146,6 +195,17 @@ def generate_cues(
             if trigger == "section_start":
                 resolved = _resolve_params(
                     params_template, beat_idx=0, n_beats=1, bar_idx=0, n_bars=1)
+                # Apply motion vocabulary override if vocabulary defines this cue type
+                if _motion:
+                    if cue_type == "movement_enable" and _motion.movement_params:
+                        resolved = {**resolved, **_motion.movement_params}
+                    elif cue_type in ("laser_static", "laser_scan", "laser_chase") and _motion.laser_params:
+                        vocab_laser = _motion.laser_params
+                        vocab_cue_type = vocab_laser.get("cue_type", "")
+                        if vocab_cue_type == cue_type or not vocab_cue_type:
+                            resolved = {**resolved, **{k: v for k, v in vocab_laser.items() if k != "cue_type"}}
+                # Always inject motion_family into params so frontend can use it
+                resolved["motion_family"] = _motion_family
                 resolved = _apply_energy_scale(
                     resolved, cue_type, bpm_s, section_energy, section_energy)
                 cues.append(_make_cue(
@@ -277,6 +337,10 @@ def generate_cues(
                             cycle_idx=j // 4,
                             cycle_list=BUILD_COLOR_CYCLE,
                         )
+                        # Apply motion vocabulary override for movement_enable
+                        if _motion and cue_type == "movement_enable" and _motion.movement_params:
+                            resolved = {**resolved, **_motion.movement_params}
+                        resolved["motion_family"] = _motion_family
                         resolved = _apply_energy_scale(
                             resolved, cue_type, bpm_s, section_energy, section_energy)
                         cues.append(_make_cue(
@@ -356,6 +420,7 @@ def generate_cues(
         cues=cues,
         brightness_multiplier=_GLOBAL_INTENSITY_SCALE,
         audience_fill=True,
+        section_choreography=section_choreography,
     )
 
 

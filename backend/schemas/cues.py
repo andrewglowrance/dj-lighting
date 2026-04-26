@@ -91,3 +91,11 @@ class CueOutputSchema(BaseModel):
             "into the crowd."
         ),
     )
+    section_choreography: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "Per-section choreography log: which motion family was selected, "
+            "why, and what realism priors apply. Useful for debugging and "
+            "for the frontend to adjust rendering per section."
+        ),
+    )

@@ -539,3 +539,44 @@ SECTION_RULES: dict[str, list[dict]] = {
         },
     ],
 }
+
+
+# ---------------------------------------------------------------------------
+# Section motion alternatives
+# ---------------------------------------------------------------------------
+# Per-section lists of motion family names for laser and movement cue types.
+# The cue engine uses these when selecting alternatives for repeated play,
+# ensuring variety across multiple listens of the same track.
+
+SECTION_MOTION_ALTERNATIVES: dict[str, dict[str, list[str]]] = {
+    "intro": {
+        "laser":    ["minimal_source_reveal", "hold_then_snap", "slow_drift", "fade_to_black"],
+        "movement": ["slow_drift", "static_hold", "minimal_source_reveal"],
+    },
+    "build": {
+        "laser":    [
+            "fan_open", "center_converge", "alternating_side_sweep",
+            "ceiling_rake", "staggered_chase", "upper_lower_layer_split",
+        ],
+        "movement": ["sweep", "alternating_side_sweep", "fan_open"],
+    },
+    "drop": {
+        "laser":    [
+            "crosshatch", "laser_burst_cluster", "audience_rake", "burst_outward",
+            "tunnel", "staggered_chase", "horizontal_sheet_plane", "symmetrical_mirror",
+            "reveal_whiteout", "beam_stack", "upper_lower_layer_split",
+        ],
+        "movement": ["fast_pan", "radial_wash_expand", "burst_outward", "symmetrical_mirror"],
+    },
+    "breakdown": {
+        "laser":    [
+            "sheet_plane", "hold_then_snap", "fan_close", "center_converge",
+            "horizontal_sheet_plane", "slow_drift",
+        ],
+        "movement": ["slow_drift", "fan_close", "hold_then_snap"],
+    },
+    "outro": {
+        "laser":    ["fade_to_black", "slow_drift", "minimal_source_reveal", "fan_close"],
+        "movement": ["slow_drift", "fade_to_black", "static_hold"],
+    },
+}
