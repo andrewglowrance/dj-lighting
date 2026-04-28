@@ -153,3 +153,65 @@ class CueOutputSchema(BaseModel):
             "using the beat_times array. laser_off means full blackout of all laser output."
         ),
     )
+
+    # ── Renderer directives (read these before building the Three.js scene) ──
+    renderer_directives: dict = Field(
+        default_factory=lambda: {
+            # LIGHTING MODEL
+            "scene_lighting": "fixture_only",
+            # → Do NOT add THREE.AmbientLight, THREE.HemisphereLight, or any
+            #   THREE.DirectionalLight. The only light sources are per-fixture
+            #   objects created/destroyed with cue activation.
+
+            # FLOOR
+            "floor_material": "unlit_black",
+            # → Set the floor plane to MeshBasicMaterial({ color: 0x000000 }).
+            #   MeshBasicMaterial ignores all scene lights so nothing can color
+            #   the floor except an explicit emissive material — which should
+            #   never be applied to the floor.
+            "floor_receives_shadows": False,
+            "floor_receives_light":   False,
+
+            # LASER BEAM GEOMETRY
+            "laser_render_style": "line_segment",
+            # → Each active laser beam is a thin THREE.Line (or CatmullRomCurve)
+            #   from fixture.position in the direction of fixture.aim.
+            #   Length = fixture.beam_length metres. The line fades to alpha=0
+            #   at beam_length. It NEVER extends beyond beam_length.
+            #   It is NEVER intersected with the floor plane.
+            "laser_aim_is_horizontal": True,
+            # → All fixture.aim vectors have Y=0. Sweep animation is applied
+            #   in the XZ plane (pan) or the YZ plane (tilt) — never a static
+            #   downward projection.
+            "laser_off_means_invisible": True,
+            # → When cue_type == "laser_off", set all laser line opacity to 0
+            #   and remove any associated PointLight immediately.
+
+            # WASH / MOVING-HEAD BEAMS
+            "wash_render_style": "volumetric_cone",
+            # → Render wash/moving-head beams as additive THREE.CylinderGeometry
+            #   or ShaderMaterial cone volumes through the haze. Do NOT create a
+            #   THREE.SpotLight that casts onto the floor — or if you must use a
+            #   SpotLight, set castShadow=false and ensure the floor material
+            #   (MeshBasicMaterial) cannot receive it.
+            "wash_floor_pool": False,
+            # → No circular light pool rendered on the floor surface for any
+            #   wash, PAR, or moving-head cue.
+
+            # LASER ANIMATION
+            "laser_animation": "continuous_sweep",
+            # → Lasers must ALWAYS be sweeping when active. Use the cue's
+            #   speed parameter as the oscillation frequency (cycles/second =
+            #   speed * 0.5). The sweep oscillates between -scan_angle/2 and
+            #   +scan_angle/2 around the fixture's aim direction.
+            #   On each beat (from beat_times array), snap to the next
+            #   sweep_direction target and reverse if sweep_direction='alternating'.
+            "laser_static_mode_allowed": False,
+            # → Never render a laser beam that is completely motionless.
+            #   Even during laser_scan cues with low speed, the beam must move.
+        },
+        description=(
+            "Explicit renderer construction directives. These override any "
+            "inferred behavior. Read once at scene init and apply globally."
+        ),
+    )
