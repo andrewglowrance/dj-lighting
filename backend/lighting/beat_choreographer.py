@@ -93,10 +93,11 @@ class PhrasePlan:
         p["zone_usage"]        = [slot.zone_emphasis]
         p["variation_reason"]  = slot.variation_reason
 
-        # Preserve coordination hints from the rule — never strip these
+        # Preserve coordination hints — never strip these fields
         p.setdefault("synchronized", True)
         p.setdefault("beat_sync", "beat")
-        # Derive sweep_direction from phrase direction for coordinated movement
+
+        # Derive sweep_direction from phrase slot direction
         dir_map = {
             "left":        "right_to_left",
             "right":       "left_to_right",
@@ -105,6 +106,19 @@ class PhrasePlan:
             "expand":      "center_out",
         }
         p["sweep_direction"] = dir_map.get(slot.direction, "alternating")
+
+        # Rotate sweep_axis per phrase for multi-directional movement:
+        #   phrase 0 → horizontal, 1 → vertical, 2 → diagonal, cycles
+        _AXIS_CYCLE = ["horizontal", "vertical", "diagonal"]
+        p["sweep_axis"] = _AXIS_CYCLE[slot.phrase_index % len(_AXIS_CYCLE)]
+
+        # Tilt parameters scale with phrase energy position (later phrases faster)
+        # Preserve base tilt values from the rule; phrases only boost them
+        base_tilt_range = float(p.get("tilt_range_deg", 25))
+        base_tilt_speed = float(p.get("tilt_speed", 0.40))
+        phrase_boost = 1.0 + 0.15 * (slot.phrase_index % 3)
+        p["tilt_range_deg"] = round(min(55.0, base_tilt_range * phrase_boost), 1)
+        p["tilt_speed"]     = round(min(1.0,  base_tilt_speed * phrase_boost), 3)
 
         return p
 

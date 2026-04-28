@@ -165,12 +165,44 @@ class EnvironmentRenderingProfile(BaseModel):
                                           description="Default haze density for the venue volume")
     screen_reflectivity:   float = Field(0.35, ge=0.0, le=1.0,
                                           description="LED backdrop / screen reflectivity [0=matte, 1=mirror]")
-    floor_reflectivity:    float = Field(0.12, ge=0.0, le=1.0,
-                                          description="Stage floor reflectivity [0=matte, 1=mirror]")
+    floor_reflectivity:    float = Field(0.0, ge=0.0, le=1.0,
+                                          description="Stage floor reflectivity. 0 = fully matte black, no light pooling on floor surface.")
     beam_bloom_strength:   float = Field(0.55, ge=0.0, le=2.0,
                                           description="UnrealBloomPass strength for wash / moving-head beams")
     laser_bloom_strength:  float = Field(0.18, ge=0.0, le=2.0,
                                           description="UnrealBloomPass strength for laser lines")
+
+    # ── Scene lighting contract ──────────────────────────────────────────────
+    # CRITICAL: the renderer must run in fixture-only lighting mode.
+    # No AmbientLight, no HemisphereLight, no DirectionalLight added to the scene.
+    # The only illumination comes from the active fixture cues (PointLight /
+    # SpotLight / RectAreaLight per fixture). This prevents floor/wall color
+    # bleeding from ambient fill.
+    ambient_light_intensity: float = Field(
+        0.0, ge=0.0, le=1.0,
+        description=(
+            "Intensity for the scene AmbientLight node. MUST be 0.0 — the scene "
+            "uses fixture-only lighting. Any value > 0 will cause colored light to "
+            "spill onto the floor and walls independent of active cues."
+        ),
+    )
+    disable_scene_ambient:   bool  = Field(
+        True,
+        description=(
+            "When True the renderer must NOT add any AmbientLight, HemisphereLight, "
+            "or DirectionalLight to the Three.js scene. Illumination comes exclusively "
+            "from fixture-driven PointLight / SpotLight objects that are activated "
+            "and deactivated with each cue."
+        ),
+    )
+    floor_material:          str   = Field(
+        "MeshStandardMaterial_roughness1_metalness0_black",
+        description=(
+            "Material descriptor for the stage floor plane. Use MeshStandardMaterial "
+            "with roughness=1.0, metalness=0.0, color=0x000000. This ensures the floor "
+            "only brightens when a fixture beam physically hits it — no ambient fill."
+        ),
+    )
 
 
 class AdvancedLightFields(BaseModel):

@@ -255,7 +255,7 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.25,
             "params": {"color": "pure_white", "transition": "snap"},
         },
-        # Laser: slow synchronized scan — all fixtures sweep together as the tension builds.
+        # Laser: diagonal sweep building tension — all fixtures track together
         {
             "trigger":        "section_start",
             "cue_type":       "laser_scan",
@@ -263,17 +263,20 @@ SECTION_RULES: dict[str, list[dict]] = {
             "fill_section":   True,
             "params": {
                 "color":          "laser_green",
-                "speed":          0.40,
+                "speed":          0.45,
                 "fan_count":      2,
-                "spread_deg":     18,
+                "spread_deg":     22,
                 "intensity":      0.65,
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "beat",
+                "sweep_axis":     "diagonal",
                 "sweep_direction":"left_to_right",
+                "tilt_speed":     0.25,
+                "tilt_range_deg": 20,
             },
         },
-        # Last 4 bars: widen and speed up — all units track together
+        # Last 4 bars: widen to horizontal fan sweep + vertical tilt
         {
             "trigger":        "build_last4",
             "cue_type":       "laser_scan",
@@ -281,17 +284,20 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 1.0,
             "params": {
                 "color":          "laser_cyan",
-                "speed":          0.85,
+                "speed":          0.90,
                 "fan_count":      4,
-                "spread_deg":     40,
-                "intensity":      0.90,
+                "spread_deg":     45,
+                "intensity":      0.92,
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "beat",
+                "sweep_axis":     "horizontal",
                 "sweep_direction":"alternating",
+                "tilt_speed":     0.50,
+                "tilt_range_deg": 30,
             },
         },
-        # Pre-drop: fast coordinated sweep burst — anticipation hit
+        # Pre-drop: full vertical sweep burst — all units tilt down-to-up together
         {
             "trigger":        "pre_drop",
             "cue_type":       "laser_scan",
@@ -306,7 +312,10 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "downbeat",
+                "sweep_axis":     "vertical",
                 "sweep_direction":"center_out",
+                "tilt_speed":     1.0,
+                "tilt_range_deg": 40,
             },
         },
     ],
@@ -393,7 +402,7 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 4.0,
             "params": {"speed": 1.0, "pattern": "fast_pan"},
         },
-        # Laser: full RGB chase that sustains the entire drop — all fixtures fire together.
+        # Laser: full RGB chase — horizontal sweep, all fixtures step together on beat
         {
             "trigger":        "section_start",
             "cue_type":       "laser_chase",
@@ -407,27 +416,34 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "beat",
+                "sweep_axis":     "horizontal",
                 "sweep_direction":"alternating",
+                "tilt_speed":     0.60,
+                "tilt_range_deg": 25,
             },
         },
-        # Every 2 bars: wide multi-beam scan sweep (always moving)
+        # Every 2 bars: wide vertical+horizontal scan — lasers sweep top-to-bottom
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "laser_scan",
             "target_groups":  [GROUP_LASERS],
             "duration_beats": 4.0,
             "params": {
-                "color":        "laser_red",
-                "speed":        0.90,
-                "fan_count":    6,
-                "spread_deg":   80,
-                "intensity":    1.0,
-                "projection":   "aerial",
-                "synchronized": True,
-                "beat_sync":    "downbeat",
+                "color":          "laser_red",
+                "speed":          0.95,
+                "fan_count":      6,
+                "spread_deg":     80,
+                "intensity":      1.0,
+                "projection":     "aerial",
+                "synchronized":   True,
+                "beat_sync":      "downbeat",
+                "sweep_axis":     "vertical",
+                "sweep_direction":"alternating",
+                "tilt_speed":     0.80,
+                "tilt_range_deg": 40,
             },
         },
-        # Every 4 bars: wider RGB chase — synchronized sweep, direction flips each phrase
+        # Every 4 bars: diagonal RGB chase — beams rake from high-L to low-R and back
         {
             "trigger":        "bar_4_beat_1",
             "cue_type":       "laser_chase",
@@ -441,7 +457,10 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "beat",
+                "sweep_axis":     "diagonal",
                 "sweep_direction":"alternating",
+                "tilt_speed":     0.70,
+                "tilt_range_deg": 35,
             },
         },
     ],
@@ -490,7 +509,7 @@ SECTION_RULES: dict[str, list[dict]] = {
             "duration_beats": 0.10,
             "params": {"intensity": 0.15},
         },
-        # Laser: very slow atmospheric scan — all fixtures drift together, never frozen
+        # Laser: very slow diagonal drift — ghostly atmospheric beam, always moving
         {
             "trigger":       "section_start",
             "cue_type":      "laser_scan",
@@ -505,7 +524,10 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "bar",
+                "sweep_axis":     "diagonal",
                 "sweep_direction":"left_to_right",
+                "tilt_speed":     0.06,
+                "tilt_range_deg": 18,
             },
         },
     ],
@@ -539,7 +561,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "_linear_fade":    True,
             },
         },
-        # Laser: slow synchronized drift for outro — fixtures fade out together
+        # Laser: slow horizontal drift fading to nothing — all fixtures sweep together
         {
             "trigger":        "section_start",
             "cue_type":       "laser_scan",
@@ -554,7 +576,10 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "projection":     "aerial",
                 "synchronized":   True,
                 "beat_sync":      "bar",
+                "sweep_axis":     "horizontal",
                 "sweep_direction":"left_to_right",
+                "tilt_speed":     0.05,
+                "tilt_range_deg": 10,
             },
         },
         # Progressive laser-off starting mid-outro (every bar)
