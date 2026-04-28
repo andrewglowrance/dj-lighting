@@ -48,6 +48,7 @@ from backend.lighting.rules import (
     SECTION_RULES,
 )
 from backend.lighting.motion_vocabulary import MOTION_VOCABULARY, get_motions_for_section
+from backend.lighting.beat_choreographer import plan_section, PhrasePlan
 from backend.lighting.diversity_tracker import DiversityTracker
 from backend.lighting.reference_dataset import (
     get_influential_segments,
@@ -153,17 +154,6 @@ def generate_cues(
         # Realism priors for this section (attached to output + used by frontend)
         _realism = get_section_realism_priors(section.label, section_energy)
 
-        # Log for output
-        section_choreography.append({
-            "section_label": section.label,
-            "bar_start":     section.bar_start,
-            "bar_end":       section.bar_end,
-            "motion_family": _motion_family,
-            "section_energy": round(section_energy, 3),
-            "realism_priors": _realism,
-            "candidates":    _candidates[:4],  # top 4 for inspection
-        })
-
         # Beats and bars that fall within this section's time range
         section_beats = [
             b for b in timeline.beats if section.start <= b.time < section.end
@@ -175,6 +165,45 @@ def generate_cues(
 
         n_beats = len(section_beats)
         n_bars = len(section_bars)
+
+        # Level 2 + 3: phrase plan for bar-level variety and beat-level modulation
+        _phrase_plan = plan_section(
+            section_label  = section.label,
+            motion_family  = _motion_family,
+            section_energy = section_energy,
+            n_bars         = n_bars,
+            fingerprint    = _fp,
+            section_index  = section.bar_start,
+        )
+
+        # Log for output (includes phrase schedule)
+        section_choreography.append({
+            "section_label":          section.label,
+            "bar_start":              section.bar_start,
+            "bar_end":                section.bar_end,
+            "motion_family":          _motion_family,
+            "section_energy":         round(section_energy, 3),
+            "phrase_length_bars":     _phrase_plan.phrase_length_bars,
+            "dominant_beat_behavior": _phrase_plan.dominant_beat_behavior,
+            "realism_priors":         _realism,
+            "candidates":             _candidates[:4],
+            "phrase_schedule": [
+                {
+                    "phrase_index":    ps.phrase_index,
+                    "bar_start":       ps.bar_start,
+                    "bar_end":         ps.bar_end,
+                    "motion_variant":  ps.motion_variant,
+                    "beat_behavior":   ps.beat_behavior,
+                    "direction":       ps.direction,
+                    "color_key":       ps.color_key,
+                    "spread_scale":    ps.spread_scale,
+                    "density_scale":   ps.density_scale,
+                    "zone_emphasis":   ps.zone_emphasis,
+                    "variation_reason": ps.variation_reason,
+                }
+                for ps in _phrase_plan.phrases
+            ],
+        })
 
         for rule in rules:
             trigger = rule["trigger"]
@@ -231,6 +260,11 @@ def generate_cues(
                         beat_note.rms_energy if beat_note else section_energy)
                     resolved = _apply_energy_scale(
                         resolved, cue_type, bpm_s, section_energy, beat_energy)
+                    # Level 3: beat modulation from phrase plan
+                    _bar_idx_in_sect = max(0, beat.bar_index - section.bar_start)
+                    _beat_mod = _phrase_plan.get_beat_modulation(
+                        beat.beat_in_bar, _bar_idx_in_sect, beat_energy)
+                    resolved = _apply_beat_modulation(resolved, _beat_mod, cue_type)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=beat.time,
@@ -282,6 +316,11 @@ def generate_cues(
                         beat_note.rms_energy if beat_note else section_energy)
                     resolved = _apply_energy_scale(
                         resolved, cue_type, bpm_s, section_energy, beat_energy)
+                    # Level 2: phrase-level param override (geometry rotation per 2/4/8 bars)
+                    if cue_type in ("laser_static", "laser_scan", "laser_chase"):
+                        resolved = _phrase_plan.get_laser_override(j, resolved)
+                    elif cue_type == "movement_enable":
+                        resolved = _phrase_plan.get_movement_override(j, resolved)
                     cues.append(_make_cue(
                         id=next_id(),
                         time=bar.time,
@@ -315,6 +354,9 @@ def generate_cues(
                             beat_note.rms_energy if beat_note else section_energy)
                         resolved = _apply_energy_scale(
                             resolved, cue_type, bpm_s, section_energy, beat_energy)
+                        if cue_type in ("laser_static", "laser_scan", "laser_chase"):
+                            bar_idx_in_sect = max(0, bar.index - section.bar_start)
+                            resolved = _phrase_plan.get_laser_override(bar_idx_in_sect, resolved)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=bar.time,
@@ -343,6 +385,12 @@ def generate_cues(
                         resolved["motion_family"] = _motion_family
                         resolved = _apply_energy_scale(
                             resolved, cue_type, bpm_s, section_energy, section_energy)
+                        if cue_type in ("laser_static", "laser_scan", "laser_chase"):
+                            bar_idx_in_sect = max(0, bar.index - section.bar_start)
+                            resolved = _phrase_plan.get_laser_override(bar_idx_in_sect, resolved)
+                        elif cue_type == "movement_enable":
+                            bar_idx_in_sect = max(0, bar.index - section.bar_start)
+                            resolved = _phrase_plan.get_movement_override(bar_idx_in_sect, resolved)
                         cues.append(_make_cue(
                             id=next_id(),
                             time=bar.time,
@@ -643,6 +691,42 @@ def _apply_energy_scale(
         e_mult = 0.25 + 0.75 * beat_energy
         if "intensity" in p:
             p["intensity"] = round(min(1.0, float(p["intensity"]) * e_mult), 3)
+
+    return p
+
+
+def _apply_beat_modulation(params: dict, mod: dict, cue_type: str) -> dict:
+    """
+    Apply beat-level modulation to cue parameters.
+
+    Scales intensity fields by mod['intensity_mod'] and spread_deg by
+    mod['spread_mod']. Also injects beat metadata for the frontend.
+
+    Skips intensity scaling for note_dynamic cues (already handled by
+    _apply_note_color).
+    """
+    p = dict(params)
+    is_note = (p.get("color") == "note_dynamic")
+
+    intensity_mod = float(mod.get("intensity_mod", 1.0))
+    spread_mod    = float(mod.get("spread_mod", 1.0))
+
+    # Scale intensity (skip if note_dynamic)
+    if not is_note and intensity_mod != 1.0:
+        for k in ("intensity", "intensity_start", "intensity_end"):
+            if k in p:
+                p[k] = round(min(1.0, float(p[k]) * intensity_mod), 3)
+
+    # Scale spread for laser cues
+    if cue_type in ("laser_static", "laser_scan") and spread_mod != 1.0:
+        if "spread_deg" in p:
+            p["spread_deg"] = round(
+                max(3.0, min(120.0, float(p["spread_deg"]) * spread_mod)), 1)
+
+    # Inject beat metadata (renderer uses these for direction/animation hints)
+    for meta_key in ("beat_behavior", "phrase_index", "motion_variant", "direction"):
+        if meta_key in mod:
+            p[meta_key] = mod[meta_key]
 
     return p
 

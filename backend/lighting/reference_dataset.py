@@ -149,6 +149,107 @@ _DATASET: dict[str, dict] = {
             "screen_visibility": 0.0,
         },
     },
+    # Luxeoniq Training 1 segments
+    "lt1_peak_intro_crosshatch": {
+        "segment_id": "lt1_peak_intro_crosshatch", "section_type": "drop_or_peak",
+        "reference_weight": 0.90, "exclude_from_training": False,
+        "motion_families": ["crosshatch", "center_converge", "symmetrical_mirror"],
+        "laser_presence": 0.98,
+        "realism_priors": {"haze_density": 0.84, "source_legibility": 0.42, "audience_reveal_strength": 0.04, "stage_visibility": 0.08, "screen_visibility": 0.02},
+    },
+    "lt1_secondary_peak_crosshatch": {
+        "segment_id": "lt1_secondary_peak_crosshatch", "section_type": "rebuild_or_secondary_peak",
+        "reference_weight": 0.88, "exclude_from_training": False,
+        "motion_families": ["crosshatch", "laser_burst_cluster", "symmetrical_mirror"],
+        "laser_presence": 0.98,
+        "realism_priors": {"haze_density": 0.82, "source_legibility": 0.38, "audience_reveal_strength": 0.04, "stage_visibility": 0.06, "screen_visibility": 0.0},
+    },
+    "lt1_transition_converge": {
+        "segment_id": "lt1_transition_converge", "section_type": "transition",
+        "reference_weight": 0.85, "exclude_from_training": False,
+        "motion_families": ["center_converge", "tunnel", "hold_then_snap"],
+        "laser_presence": 0.90,
+        "realism_priors": {"haze_density": 0.78, "source_legibility": 0.48, "audience_reveal_strength": 0.02, "stage_visibility": 0.06, "screen_visibility": 0.0},
+    },
+    "lt1_beam_hybrid": {
+        "segment_id": "lt1_beam_hybrid", "section_type": "rebuild_or_secondary_peak",
+        "reference_weight": 0.88, "exclude_from_training": False,
+        "motion_families": ["beam_stack", "mirror_sweep", "upper_lower_layer_split"],
+        "laser_presence": 0.36,
+        "realism_priors": {"haze_density": 0.80, "source_legibility": 0.64, "audience_reveal_strength": 0.08, "stage_visibility": 0.14, "screen_visibility": 0.04},
+    },
+    "lt1_minimal_hold": {
+        "segment_id": "lt1_minimal_hold", "section_type": "sustain",
+        "reference_weight": 0.80, "exclude_from_training": False,
+        "motion_families": ["static_hold", "hold_then_snap", "aperture_hold"],
+        "laser_presence": 0.44,
+        "realism_priors": {"haze_density": 0.42, "source_legibility": 0.36, "audience_reveal_strength": 0.0, "stage_visibility": 0.04, "screen_visibility": 0.0},
+    },
+    "lt1_rebuild_fan": {
+        "segment_id": "lt1_rebuild_fan", "section_type": "rebuild_or_secondary_peak",
+        "reference_weight": 0.85, "exclude_from_training": False,
+        "motion_families": ["fan_open", "center_converge", "symmetrical_mirror"],
+        "laser_presence": 0.82,
+        "realism_priors": {"haze_density": 0.76, "source_legibility": 0.42, "audience_reveal_strength": 0.02, "stage_visibility": 0.06, "screen_visibility": 0.0},
+    },
+    # Luxeoniq Training 2 segments
+    "lt2_laser_peak_fan": {
+        "segment_id": "lt2_laser_peak_fan", "section_type": "drop_or_peak",
+        "reference_weight": 0.88, "exclude_from_training": False,
+        "motion_families": ["fan_open", "symmetrical_mirror", "alternating_side_sweep"],
+        "laser_presence": 0.92,
+        "realism_priors": {"haze_density": 0.68, "source_legibility": 0.54, "audience_reveal_strength": 0.03, "stage_visibility": 0.08, "screen_visibility": 0.0},
+    },
+    "lt2_dark_reset": {
+        "segment_id": "lt2_dark_reset", "section_type": "dark_reset",
+        "reference_weight": 0.82, "exclude_from_training": False,
+        "motion_families": ["static_hold", "fade_to_black"],
+        "laser_presence": 0.04,
+        "realism_priors": {"haze_density": 0.10, "source_legibility": 0.12, "audience_reveal_strength": 0.0, "stage_visibility": 0.04, "screen_visibility": 0.0},
+    },
+    "lt2_horizontal_rake": {
+        "segment_id": "lt2_horizontal_rake", "section_type": "laser_sustain",
+        "reference_weight": 0.95, "exclude_from_training": False,
+        "motion_families": ["audience_rake", "horizontal_sheet_plane", "fan_open"],
+        "laser_presence": 0.94,
+        "realism_priors": {"haze_density": 0.70, "source_legibility": 0.44, "audience_reveal_strength": 0.06, "stage_visibility": 0.04, "screen_visibility": 0.0},
+    },
+    "lt2_white_reveal": {
+        "segment_id": "lt2_white_reveal", "section_type": "white_beam_reveal",
+        "reference_weight": 0.95, "exclude_from_training": False,
+        "motion_families": ["beam_stack", "reveal_whiteout", "mirror_sweep"],
+        "laser_presence": 0.08,
+        "realism_priors": {"haze_density": 0.82, "source_legibility": 0.76, "audience_reveal_strength": 0.24, "stage_visibility": 0.20, "screen_visibility": 0.02},
+    },
+    "lt2_laser_return": {
+        "segment_id": "lt2_laser_return", "section_type": "cooldown_transition",
+        "reference_weight": 0.78, "exclude_from_training": False,
+        "motion_families": ["fan_close", "alternating_side_sweep"],
+        "laser_presence": 0.82,
+        "realism_priors": {"haze_density": 0.62, "source_legibility": 0.42, "audience_reveal_strength": 0.04, "stage_visibility": 0.06, "screen_visibility": 0.0},
+    },
+    # Luxeoniq Training 3 segments
+    "lt3_hybrid_intro": {
+        "segment_id": "lt3_hybrid_intro", "section_type": "rebuild_or_secondary_peak",
+        "reference_weight": 0.88, "exclude_from_training": False,
+        "motion_families": ["upper_lower_layer_split", "mirror_sweep", "fan_open"],
+        "laser_presence": 0.44,
+        "realism_priors": {"haze_density": 0.72, "source_legibility": 0.54, "audience_reveal_strength": 0.04, "stage_visibility": 0.14, "screen_visibility": 0.22},
+    },
+    "lt3_hybrid_sustain": {
+        "segment_id": "lt3_hybrid_sustain", "section_type": "sustain",
+        "reference_weight": 0.86, "exclude_from_training": False,
+        "motion_families": ["crosshatch", "mirror_sweep", "beam_stack"],
+        "laser_presence": 0.38,
+        "realism_priors": {"haze_density": 0.74, "source_legibility": 0.58, "audience_reveal_strength": 0.04, "stage_visibility": 0.12, "screen_visibility": 0.26},
+    },
+    "lt3_dark_release": {
+        "segment_id": "lt3_dark_release", "section_type": "return_to_dark",
+        "reference_weight": 0.80, "exclude_from_training": False,
+        "motion_families": ["fade_to_black", "minimal_source_reveal", "hold_then_snap"],
+        "laser_presence": 0.12,
+        "realism_priors": {"haze_density": 0.28, "source_legibility": 0.22, "audience_reveal_strength": 0.0, "stage_visibility": 0.06, "screen_visibility": 0.08},
+    },
 }
 
 # Filter excluded segments at module load time
@@ -167,7 +268,7 @@ _SECTION_TYPE_MAP: dict[str, list[str]] = {
         "drop_or_peak", "reveal_peak", "peak_reveal", "white_beam_reveal",
         "sustain", "laser_sustain", "rebuild_or_secondary_peak",
     ],
-    "breakdown": ["sustain", "dark_transition", "environment_reveal", "return_to_dark", "cooldown_transition"],
+    "breakdown": ["sustain", "dark_transition", "dark_reset", "environment_reveal", "return_to_dark", "cooldown_transition"],
     "outro":     ["return_to_dark", "dark_transition", "ambient_intro"],
 }
 

@@ -521,6 +521,48 @@ MOTION_VOCABULARY: dict[str, MotionDescriptor] = {
         realism_hints={"haze_boost": 0.15, "bloom": 0.45, "source_legibility": 0.5},
         description="L/R symmetric beam architecture — drop, peak, and reveal moments.",
     ),
+
+    # 25. mirror_sweep
+    "mirror_sweep": MotionDescriptor(
+        section_affinity=["build", "drop"],
+        energy_range=(0.45, 0.90),
+        primary_zones=["upper_truss", "side_emitters"],
+        laser_affinity=0.65,
+        speed_profile="medium",
+        cooldown_sections=2,
+        laser_params={
+            "cue_type": "laser_scan",
+            "color": "laser_white",
+            "speed": 0.60,
+            "fan_count": 3,
+            "spread_deg": 55,
+            "intensity": 0.80,
+        },
+        movement_params={"speed": 0.65, "pattern": "sweep"},
+        realism_hints={"haze_boost": 0.12, "bloom": 0.40, "source_legibility": 0.55},
+        description="L/R mirrored beam sweep — hybrid beam+laser, builds and drops.",
+    ),
+
+    # 26. aperture_hold
+    "aperture_hold": MotionDescriptor(
+        section_affinity=["breakdown", "intro"],
+        energy_range=(0.10, 0.55),
+        primary_zones=["upper_truss", "mid_stage"],
+        laser_affinity=0.45,
+        speed_profile="slow",
+        cooldown_sections=2,
+        laser_params={
+            "cue_type": "laser_static",
+            "color": "laser_blue",
+            "pattern": "x_cross",
+            "fan_count": 2,
+            "spread_deg": 20,
+            "intensity": 0.35,
+        },
+        movement_params={"speed": 0.10, "pattern": "slow_drift"},
+        realism_hints={"haze_boost": 0.0, "bloom": 0.08},
+        description="Narrow X/cross pattern — minimal geometry, breakdown and intro.",
+    ),
 }
 
 
@@ -535,6 +577,9 @@ _AFFINITY_MAP: dict[str, list[str]] = {
     "breakdown": ["breakdown"],
     "outro":     ["outro"],
 }
+# mirror_sweep and aperture_hold use section_affinity directly in MOTION_VOCABULARY;
+# _AFFINITY_MAP maps engine labels to affinity strings — no additional entries needed
+# since get_motions_for_section checks MOTION_VOCABULARY.section_affinity directly.
 
 
 def get_motions_for_section(
