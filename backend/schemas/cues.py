@@ -99,3 +99,33 @@ class CueOutputSchema(BaseModel):
             "for the frontend to adjust rendering per section."
         ),
     )
+
+    # Beat / bar timing arrays for frame-precise frontend sync
+    # The frontend should use requestAnimationFrame and compare audio.currentTime
+    # against these sorted arrays instead of computing timing from BPM.
+    beat_times: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Sorted list of every beat onset time in seconds from track start. "
+            "Use with requestAnimationFrame to trigger beat-locked visual effects "
+            "with sub-frame precision — do NOT derive from BPM arithmetic."
+        ),
+    )
+    bar_times: list[float] = Field(
+        default_factory=list,
+        description=(
+            "Sorted list of every bar downbeat time (beat 0 of each bar) in seconds. "
+            "Use for bar-level visual transitions (phrase changes, color shifts, etc.)."
+        ),
+    )
+
+    # Renderer safety flag — tells the frontend never to project laser patterns
+    # onto the floor plane regardless of pattern type.
+    no_floor_projection: bool = Field(
+        True,
+        description=(
+            "When True, the renderer must not project any laser beam onto the "
+            "floor/ground plane. All laser cues use aerial projection (beams travel "
+            "through haze above stage level). Overrides any pattern-type inference."
+        ),
+    )

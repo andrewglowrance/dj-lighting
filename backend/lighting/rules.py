@@ -268,6 +268,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "fan_count":  2,
                 "spread_deg": 18,
                 "intensity":  0.65,
+                "projection": "aerial",
             },
         },
         # Last 4 bars: widen to multi-beam scan, speed up (overrides fill above)
@@ -282,6 +283,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "fan_count":  4,
                 "spread_deg": 40,
                 "intensity":  0.90,
+                "projection": "aerial",
             },
         },
         # Pre-drop: laser snaps to white static fan — anticipation hit
@@ -296,6 +298,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "fan_count":  5,
                 "spread_deg": 60,
                 "intensity":  1.0,
+                "projection": "aerial",
             },
         },
     ],
@@ -395,20 +398,22 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "beam_count":  4,
                 "step_beats":  0.50,
                 "intensity":   1.0,
+                "projection":  "aerial",
             },
         },
-        # Every 2 bars: alternate between chase and full fan
+        # Every 2 bars: wide aerial fan blast (no floor projection)
         {
             "trigger":        "bar_2_beat_1",
             "cue_type":       "laser_static",
             "target_groups":  [GROUP_LASERS],
             "duration_beats": 4.0,
             "params": {
-                "color":      "laser_red",
-                "pattern":    "x_cross",
-                "fan_count":  6,
-                "spread_deg": 80,
-                "intensity":  1.0,
+                "color":       "laser_red",
+                "pattern":     "fan",
+                "fan_count":   6,
+                "spread_deg":  80,
+                "intensity":   1.0,
+                "projection":  "aerial",
             },
         },
         # Every 4 bars: back to RGB chase
@@ -422,6 +427,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "beam_count":  6,
                 "step_beats":  0.5,
                 "intensity":   1.0,
+                "projection":  "aerial",
             },
         },
     ],
@@ -482,6 +488,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "fan_count":  1,
                 "spread_deg": 0,
                 "intensity":  0.30,
+                "projection": "aerial",
             },
         },
     ],
@@ -527,6 +534,7 @@ SECTION_RULES: dict[str, list[dict]] = {
                 "fan_count":  1,
                 "spread_deg": 10,
                 "intensity":  0.20,
+                "projection": "aerial",
             },
         },
         # Progressive laser-off starting mid-outro (every bar)

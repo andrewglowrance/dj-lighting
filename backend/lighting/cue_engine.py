@@ -461,6 +461,15 @@ def generate_cues(
     # additive on top of the music-reactive values rather than competing with them.
     cues = [_apply_global_brightness(c, _GLOBAL_INTENSITY_SCALE) for c in cues]
 
+    # Build sorted beat_times and bar_times arrays from the timeline.
+    # These give the frontend exact onset timestamps for frame-precise sync via
+    # requestAnimationFrame — eliminates the need to derive timing from BPM.
+    beat_times: list[float] = sorted(b.time for b in timeline.beats)
+    # bar_times: only beat_in_bar == 0 (downbeat of each bar)
+    bar_times: list[float] = sorted(
+        b.time for b in timeline.beats if b.beat_in_bar == 0
+    )
+
     return CueOutputSchema(
         bpm=timeline.bpm.bpm,
         total_duration_sec=timeline.metadata.duration_sec,
@@ -469,6 +478,9 @@ def generate_cues(
         brightness_multiplier=_GLOBAL_INTENSITY_SCALE,
         audience_fill=True,
         section_choreography=section_choreography,
+        beat_times=beat_times,
+        bar_times=bar_times,
+        no_floor_projection=True,
     )
 
 
