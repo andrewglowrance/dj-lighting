@@ -129,3 +129,27 @@ class CueOutputSchema(BaseModel):
             "through haze above stage level). Overrides any pattern-type inference."
         ),
     )
+
+    # Laser coordination contract (applies to every laser cue in this output):
+    #
+    # Every laser cue's parameters now include:
+    #   synchronized: bool     — True means ALL fixtures must pan/tilt together as one
+    #                            unit; no fixture should move independently.
+    #   beat_sync: str         — "beat" | "downbeat" | "bar"
+    #                            When to snap beam positions: every beat, downbeat only,
+    #                            or bar downbeat only. Use beat_times / bar_times arrays.
+    #   sweep_direction: str   — "left_to_right" | "right_to_left" | "alternating" |
+    #                            "center_out"
+    #                            Direction for the current phrase's sweep cycle.
+    #                            Reverse on each beat_sync event for alternating.
+    #
+    # Laser_off cues mean ZERO visible output — no dim glow, no idle beam.
+    laser_sync_contract: str = Field(
+        "synchronized_aerial_beat_locked",
+        description=(
+            "Renderer contract string. Value is always 'synchronized_aerial_beat_locked': "
+            "all laser fixtures sweep together (synchronized=True), project into haze "
+            "only (projection=aerial), snap/reverse direction on each beat_sync event "
+            "using the beat_times array. laser_off means full blackout of all laser output."
+        ),
+    )

@@ -93,6 +93,19 @@ class PhrasePlan:
         p["zone_usage"]        = [slot.zone_emphasis]
         p["variation_reason"]  = slot.variation_reason
 
+        # Preserve coordination hints from the rule — never strip these
+        p.setdefault("synchronized", True)
+        p.setdefault("beat_sync", "beat")
+        # Derive sweep_direction from phrase direction for coordinated movement
+        dir_map = {
+            "left":        "right_to_left",
+            "right":       "left_to_right",
+            "center":      "center_out",
+            "alternating": "alternating",
+            "expand":      "center_out",
+        }
+        p["sweep_direction"] = dir_map.get(slot.direction, "alternating")
+
         return p
 
     def get_movement_override(
