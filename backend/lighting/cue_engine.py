@@ -475,6 +475,10 @@ def generate_cues(
     # frontend needs zero geometric reasoning — just interpolate the numbers.
     laser_preset = _build_laser_preset(template)
 
+    # Pre-compute explicit beat-by-beat beam endpoints.
+    # The frontend uses these directly — no oscillator or rotation math needed.
+    laser_kf = _build_laser_keyframes(laser_preset, timeline.beats)
+
     return CueOutputSchema(
         bpm=timeline.bpm.bpm,
         total_duration_sec=timeline.metadata.duration_sec,
@@ -487,6 +491,7 @@ def generate_cues(
         bar_times=bar_times,
         no_floor_projection=True,
         laser_animation_preset=laser_preset,
+        laser_keyframes=laser_kf,
     )
 
 
@@ -561,6 +566,81 @@ def _build_laser_preset(template: "RigTemplate | None") -> dict:
         ),
         "fixtures":    fixtures_out,
     }
+
+
+def _build_laser_keyframes(preset: dict, beats: list) -> list[dict]:
+    """
+    Pre-compute explicit beam endpoints (world-space metres) for every beat.
+
+    This removes ALL rotation/oscillator math from the frontend.
+    The renderer only needs:  lerp(kfA.beams[i], kfB.beams[i], t_within_beat)
+
+    Sweep logic:
+      - phase_sign starts at +1, flips every beat  →  creates back-and-forth sweep
+      - on bar downbeats (beat.beat_in_bar == 0):  burst — beams open to max spread (V-shape)
+      - t = 1.0 when phase_sign > 0,  t = 0.0 when phase_sign < 0
+      - RIGHT fixture has pan_range_deg inverted [+half, -half] so it automatically
+        mirrors LEFT without any extra logic in the frontend.
+
+    Endpoint formula (no matrices, pure trig):
+      pan_deg = lerp(pan_range[0], pan_range[1], t)
+      ex = origin.x + sin(pan_rad) * beam_length
+      ey = origin.y                                  (horizontal — no floor projection)
+      ez = origin.z + cos(pan_rad) * beam_length
+    """
+    import math
+
+    if not preset or not preset.get("fixtures"):
+        return []
+
+    fixtures = preset["fixtures"]
+    keyframes: list[dict] = []
+    phase_sign = 1   # +1 = t→1.0 (pan_range end), -1 = t→0.0 (pan_range start)
+
+    for beat in beats:
+        is_bar_downbeat = (beat.beat_in_bar == 0)
+
+        # t alternates 0.0 ↔ 1.0 every beat regardless of bar position.
+        # t=0 → beams at pan_range[0] end  (V-open: LEFT far-left, RIGHT far-right)
+        # t=1 → beams at pan_range[1] end  (X-cross: beams converge)
+        # is_bar_downbeat = True signals the frontend to add a burst visual effect
+        # (bright flash or snap to t=0 for one frame) before resuming the sweep.
+        t = 1.0 if phase_sign > 0 else 0.0
+
+        beams: list[dict] = []
+        for f in fixtures:
+            origin      = f["origin"]          # [x, y, z]
+            pan_range   = f["pan_range_deg"]   # [min_deg, max_deg] (right already inverted)
+            beam_length = f["beam_length"]
+
+            pan_deg = pan_range[0] + (pan_range[1] - pan_range[0]) * t
+            pan_rad = pan_deg * math.pi / 180.0
+
+            ex = origin[0] + math.sin(pan_rad) * beam_length
+            ey = origin[1]                                      # stay at truss height
+            ez = origin[2] + math.cos(pan_rad) * beam_length   # toward audience (+Z)
+
+            beams.append({
+                "id": f["id"],
+                "sx": round(float(origin[0]), 3),
+                "sy": round(float(origin[1]), 3),
+                "sz": round(float(origin[2]), 3),
+                "ex": round(ex, 3),
+                "ey": round(ey, 3),
+                "ez": round(ez, 3),
+            })
+
+        keyframes.append({
+            "time":             round(float(beat.time), 4),
+            "beat_index":       int(beat.index),
+            "is_bar_downbeat":  is_bar_downbeat,
+            "beams":            beams,
+        })
+
+        # Flip direction every beat
+        phase_sign *= -1
+
+    return keyframes
 
 
 # ---------------------------------------------------------------------------

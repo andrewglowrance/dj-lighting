@@ -171,6 +171,37 @@ class CueOutputSchema(BaseModel):
         ),
     )
 
+    # ── Pre-computed laser beam endpoints (authoritative — use these, not preset math) ──
+    #
+    # For EVERY beat in the track, this array contains the exact world-space start
+    # and end coordinates for each laser beam.  The frontend needs zero rotation
+    # math: just find the current beat index, lerp between adjacent keyframes, and
+    # update the THREE.Line geometry directly.
+    #
+    # Format per entry:
+    #   time           float  — beat onset time in seconds
+    #   beat_index     int    — absolute beat index in the track
+    #   is_bar_downbeat bool  — True on beat 0 of each bar (burst frames)
+    #   beams          list   — one entry per active laser fixture:
+    #     id           str    — fixture id (matches layout fixture id)
+    #     sx,sy,sz     float  — beam start (fixture origin, world-space metres)
+    #     ex,ey,ez     float  — beam end (world-space metres, pre-computed)
+    #
+    # Sweep pattern across beats:
+    #   bar downbeat   → beams burst to maximum spread (V-shape, beams diverge)
+    #   beat alternates → LEFT and RIGHT endpoints swap every beat, creating X↔V motion
+    #   LEFT beam      → endpoint swings left↔right across beats
+    #   RIGHT beam     → endpoint mirrors LEFT (opposite direction), guaranteed symmetric
+    laser_keyframes: list[dict] = Field(
+        default_factory=list,
+        description=(
+            "Pre-computed per-beat laser beam endpoints in world-space metres. "
+            "Frontend: find current beat index from beat_times, lerp between "
+            "laser_keyframes[i].beams and laser_keyframes[i+1].beams. "
+            "No rotation math needed — just lerp sx/sy/sz → ex/ey/ez."
+        ),
+    )
+
     renderer_directives: dict = Field(
         default_factory=lambda: {
             # ── LIGHTING MODEL ────────────────────────────────────────────────
