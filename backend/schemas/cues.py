@@ -155,6 +155,22 @@ class CueOutputSchema(BaseModel):
     )
 
     # ── Renderer directives (read these before building the Three.js scene) ──
+    # Pre-computed per-fixture animation spec. The frontend must use ONLY these
+    # values to drive laser beam positions — do NOT re-derive from fixture aim vectors.
+    laser_animation_preset: dict = Field(
+        default_factory=dict,
+        description=(
+            "Complete, unambiguous laser animation specification. "
+            "Contains one entry per laser fixture with origin, aim_center, "
+            "pan_range_deg (inverted for right units), tilt_range_deg, "
+            "phase_offset_deg, and beam_length. "
+            "The frontend interpolates between range[0] and range[1] using "
+            "sin(t * freq * 2π + phase_offset_rad) mapped to [0,1]. "
+            "This is the authoritative source — renderer_directives and fixture "
+            "layout aim vectors are secondary."
+        ),
+    )
+
     renderer_directives: dict = Field(
         default_factory=lambda: {
             # ── LIGHTING MODEL ────────────────────────────────────────────────

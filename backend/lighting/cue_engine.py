@@ -470,6 +470,11 @@ def generate_cues(
         b.time for b in timeline.beats if b.beat_in_bar == 0
     )
 
+    # Build per-fixture laser animation preset from the stage layout.
+    # This pre-computes pan/tilt ranges with right-unit phase inversion so the
+    # frontend needs zero geometric reasoning — just interpolate the numbers.
+    laser_preset = _build_laser_preset(template)
+
     return CueOutputSchema(
         bpm=timeline.bpm.bpm,
         total_duration_sec=timeline.metadata.duration_sec,
@@ -481,7 +486,81 @@ def generate_cues(
         beat_times=beat_times,
         bar_times=bar_times,
         no_floor_projection=True,
+        laser_animation_preset=laser_preset,
     )
+
+
+def _build_laser_preset(template: "RigTemplate | None") -> dict:
+    """
+    Build the laser_animation_preset from the rig template's stage layout.
+
+    For each laser_rgb fixture, produces:
+      origin          [x, y, z]    – fixture mount position
+      aim_center      [x, y, z]    – normalised base aim (Y=0, horizontal)
+      pan_range_deg   [min, max]   – horizontal sweep range in degrees
+                                     RIGHT units: range is inverted ([max, min])
+                                     so they mirror the LEFT unit exactly.
+      tilt_range_deg  [min, max]   – vertical sweep range in degrees
+      phase_offset_deg int         – 0 for left/center, 180 for right
+      sweep_role      str          – "left" | "right" | "center"
+      beam_length     float        – metres before beam fades to transparent
+      scan_angle      float        – total horizontal sweep width in degrees
+    """
+    if template is None:
+        return {}
+
+    try:
+        from backend.lighting.stage_layout import get_layout
+        layout = get_layout(template.id)
+    except Exception:
+        return {}
+
+    fixtures_out: list[dict] = []
+    for f in layout.get("fixtures", []):
+        if f.get("type") != "laser_rgb":
+            continue
+
+        scan_angle   = float(f.get("scan_angle",   45))
+        tilt_range   = float(f.get("tilt_range_deg", 25))
+        beam_length  = float(f.get("beam_length",  10))
+        role         = f.get("sweep_role", "center")
+        phase_offset = int(f.get("sweep_phase_offset_deg", 0))
+        aim          = f.get("aim", [0.0, 0.0, 1.0])
+
+        half_pan  = scan_angle / 2.0
+        half_tilt = tilt_range  / 2.0
+
+        # Right units: invert the pan range so their sweep mirrors the left unit.
+        # When left is at +30°, right is at -30° → symmetrical V / X shape.
+        if role == "right":
+            pan_range = [half_pan, -half_pan]   # sweeps inward
+        else:
+            pan_range = [-half_pan, half_pan]   # sweeps outward / center
+
+        fixtures_out.append({
+            "id":              f["id"],
+            "sweep_role":      role,
+            "origin":          f.get("position", [0, 0, 0]),
+            "aim_center":      aim,
+            "pan_range_deg":   pan_range,
+            "tilt_range_deg":  [-half_tilt, half_tilt],
+            "phase_offset_deg":phase_offset,
+            "beam_length":     beam_length,
+            "scan_angle":      scan_angle,
+            "scan_axes":       f.get("scan_axes", ["horizontal"]),
+        })
+
+    return {
+        "mode":        "bilateral_sync",
+        "description": (
+            "Drive all laser fixtures from a single shared phase oscillator. "
+            "LEFT units use pan_range_deg as-is. "
+            "RIGHT units have pan_range_deg already inverted so they mirror LEFT. "
+            "CENTER units follow LEFT. "
+            "pan_angle = lerp(pan_range_deg[0], pan_range_deg[1], (sin(t*freq*2π + phase_offset_rad)+1)/2)"
+        ),
+        "fixtures":    fixtures_out,
+    }
 
 
 # ---------------------------------------------------------------------------
