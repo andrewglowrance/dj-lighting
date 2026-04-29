@@ -545,6 +545,7 @@ def _build_laser_preset(template: "RigTemplate | None") -> dict:
         fixtures_out.append({
             "id":              f["id"],
             "sweep_role":      role,
+            "zone_class":      f.get("zone_class", "overhead"),
             "origin":          f.get("position", [0, 0, 0]),
             "aim_center":      aim,
             "pan_range_deg":   pan_range,
@@ -572,21 +573,16 @@ def _build_laser_keyframes(preset: dict, beats: list) -> list[dict]:
     """
     Pre-compute explicit beam endpoints (world-space metres) for every beat.
 
-    This removes ALL rotation/oscillator math from the frontend.
-    The renderer only needs:  lerp(kfA.beams[i], kfB.beams[i], t_within_beat)
+    Zone-aware sweep logic:
+      - overhead   : standard alternating sweep (t flips each beat)
+      - floor      : same phase as overhead; aim_center Y component adds constant elevation
+      - side_tower : INVERTED phase vs overhead → creates X / cross-stage patterns
 
-    Sweep logic:
-      - phase_sign starts at +1, flips every beat  →  creates back-and-forth sweep
-      - on bar downbeats (beat.beat_in_bar == 0):  burst — beams open to max spread (V-shape)
-      - t = 1.0 when phase_sign > 0,  t = 0.0 when phase_sign < 0
-      - RIGHT fixture has pan_range_deg inverted [+half, -half] so it automatically
-        mirrors LEFT without any extra logic in the frontend.
+    Bilateral symmetry: RIGHT units have pan_range_deg already inverted in preset,
+    so they automatically mirror LEFT without extra frontend logic.
 
-    Endpoint formula (no matrices, pure trig):
-      pan_deg = lerp(pan_range[0], pan_range[1], t)
-      ex = origin.x + sin(pan_rad) * beam_length
-      ey = origin.y                                  (horizontal — no floor projection)
-      ez = origin.z + cos(pan_rad) * beam_length
+    Frontend: lerp between adjacent keyframe endpoints, filter beams by zone_class
+    using the active cue's active_zones parameter.
     """
     import math
 
@@ -595,33 +591,44 @@ def _build_laser_keyframes(preset: dict, beats: list) -> list[dict]:
 
     fixtures = preset["fixtures"]
     keyframes: list[dict] = []
-    phase_sign = 1   # +1 = t→1.0 (pan_range end), -1 = t→0.0 (pan_range start)
+    phase_sign = 1   # +1 → t=1.0, -1 → t=0.0; flips every beat
 
     for beat in beats:
         is_bar_downbeat = (beat.beat_in_bar == 0)
-
-        # t alternates 0.0 ↔ 1.0 every beat regardless of bar position.
-        # t=0 → beams at pan_range[0] end  (V-open: LEFT far-left, RIGHT far-right)
-        # t=1 → beams at pan_range[1] end  (X-cross: beams converge)
-        # is_bar_downbeat = True signals the frontend to add a burst visual effect
-        # (bright flash or snap to t=0 for one frame) before resuming the sweep.
-        t = 1.0 if phase_sign > 0 else 0.0
+        t_overhead = 1.0 if phase_sign > 0 else 0.0
 
         beams: list[dict] = []
         for f in fixtures:
-            origin      = f["origin"]          # [x, y, z]
-            pan_range   = f["pan_range_deg"]   # [min_deg, max_deg] (right already inverted)
+            pan_range   = f["pan_range_deg"]
             beam_length = f["beam_length"]
+            origin      = f["origin"]
+            zone_class  = f.get("zone_class", "overhead")
+            aim         = f.get("aim_center", [0.0, 0.0, 1.0])
+
+            # Zone-specific t selection
+            # side_tower inverts to create cross-stage X geometry vs overhead beams
+            if zone_class == "side_tower":
+                t = 1.0 - t_overhead   # inverted → opposite direction
+            else:
+                t = t_overhead         # overhead & floor track together
 
             pan_deg = pan_range[0] + (pan_range[1] - pan_range[0]) * t
             pan_rad = pan_deg * math.pi / 180.0
 
-            ex = origin[0] + math.sin(pan_rad) * beam_length
-            ey = origin[1]                                      # stay at truss height
-            ez = origin[2] + math.cos(pan_rad) * beam_length   # toward audience (+Z)
+            # Compute horizontal projection of beam (accounts for floor fixture elevation)
+            aim_x, aim_y, aim_z = float(aim[0]), float(aim[1]), float(aim[2])
+            horiz_mag = math.sqrt(aim_x ** 2 + aim_z ** 2) or 1.0
+            elev_rad  = math.atan2(aim_y, horiz_mag)
+            horiz_len = beam_length * math.cos(elev_rad)   # effective horizontal reach
+            elev_comp = beam_length * math.sin(elev_rad)   # constant vertical lift
+
+            ex = origin[0] + math.sin(pan_rad) * horiz_len
+            ey = origin[1] + elev_comp                      # constant; panning is horizontal
+            ez = origin[2] + math.cos(pan_rad) * horiz_len  # toward audience
 
             beams.append({
-                "id": f["id"],
+                "id":         f["id"],
+                "zone_class": zone_class,
                 "sx": round(float(origin[0]), 3),
                 "sy": round(float(origin[1]), 3),
                 "sz": round(float(origin[2]), 3),
@@ -631,14 +638,13 @@ def _build_laser_keyframes(preset: dict, beats: list) -> list[dict]:
             })
 
         keyframes.append({
-            "time":             round(float(beat.time), 4),
-            "beat_index":       int(beat.index),
-            "is_bar_downbeat":  is_bar_downbeat,
-            "beams":            beams,
+            "time":            round(float(beat.time), 4),
+            "beat_index":      int(beat.index),
+            "is_bar_downbeat": is_bar_downbeat,
+            "beams":           beams,
         })
 
-        # Flip direction every beat
-        phase_sign *= -1
+        phase_sign *= -1   # flip direction every beat
 
     return keyframes
 

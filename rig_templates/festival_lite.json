@@ -5,7 +5,7 @@
   "description": "Scaled-down festival-style rig suitable for a 500-1500 cap room or outdoor stage. Two LED pixel battens on front truss create horizon-level colour washes. Eight RGBW PARs provide front fill and overhead colour. Four moving head spots give beam movement and mid-air aerial effects. Two strobes and two haze machines complete the atmosphere. Four independently addressable colour zones allow section-level colour storytelling.",
 
   "universe": 1,
-  "channel_budget": 180,
+  "channel_budget": 220,
 
   "fixture_groups": {
     "wash_all": {
@@ -194,6 +194,34 @@
     }
   },
 
+  "lasers": {
+    "label": "Festival Laser Array",
+    "description": "8-zone RGB laser array: 3 overhead truss, 3 floor upstage, 2 side tower. Zones: overhead, floor, side_tower.",
+    "fixture_count": 8,
+    "fixtures": [
+      { "id": "laser_top_l",   "type": "laser_rgb", "dmx_start": 151, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "overhead",    "model_hint": "RGB Laser Top Left"    },
+      { "id": "laser_top_c",   "type": "laser_rgb", "dmx_start": 156, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "overhead",    "model_hint": "RGB Laser Top Center"  },
+      { "id": "laser_top_r",   "type": "laser_rgb", "dmx_start": 161, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "overhead",    "model_hint": "RGB Laser Top Right"   },
+      { "id": "laser_floor_l", "type": "laser_rgb", "dmx_start": 166, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "floor",       "model_hint": "RGB Laser Floor Left"  },
+      { "id": "laser_floor_c", "type": "laser_rgb", "dmx_start": 171, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "floor",       "model_hint": "RGB Laser Floor Center"},
+      { "id": "laser_floor_r", "type": "laser_rgb", "dmx_start": 176, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "floor",       "model_hint": "RGB Laser Floor Right" },
+      { "id": "laser_side_l",  "type": "laser_rgb", "dmx_start": 181, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "side_tower",  "model_hint": "RGB Laser Side Left"   },
+      { "id": "laser_side_r",  "type": "laser_rgb", "dmx_start": 186, "channel_count": 5, "channels": { "dimmer":1,"red":2,"green":3,"blue":4,"mode":5 }, "zone_class": "side_tower",  "model_hint": "RGB Laser Side Right"  }
+    ],
+    "capabilities": {
+      "color": true,
+      "color_model": "RGB",
+      "intensity": true,
+      "intensity_range": [0, 255],
+      "strobe": false,
+      "movement": true,
+      "pan_range_deg": 110,
+      "tilt_range_deg": 70,
+      "zones": 3,
+      "zone_split": "overhead_floor_side"
+    }
+  },
+
   "auxiliary": {
     "haze_l": {
       "id": "haze_1",
@@ -236,7 +264,15 @@
     "145-146": "strobe_1        (2-ch LED Strobe)",
     "147-148": "strobe_2        (2-ch LED Strobe)",
     "149":     "haze_1          (1-ch Haze)",
-    "150":     "haze_2          (1-ch Haze)"
+    "150":     "haze_2          (1-ch Haze)",
+    "151-155": "laser_top_l     (5-ch RGB Laser)",
+    "156-160": "laser_top_c     (5-ch RGB Laser)",
+    "161-165": "laser_top_r     (5-ch RGB Laser)",
+    "166-170": "laser_floor_l   (5-ch RGB Laser)",
+    "171-175": "laser_floor_c   (5-ch RGB Laser)",
+    "176-180": "laser_floor_r   (5-ch RGB Laser)",
+    "181-185": "laser_side_l    (5-ch RGB Laser)",
+    "186-190": "laser_side_r    (5-ch RGB Laser)"
   },
 
   "cue_rendering": {
