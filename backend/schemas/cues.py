@@ -157,58 +157,71 @@ class CueOutputSchema(BaseModel):
     # ── Renderer directives (read these before building the Three.js scene) ──
     renderer_directives: dict = Field(
         default_factory=lambda: {
-            # LIGHTING MODEL
+            # ── LIGHTING MODEL ────────────────────────────────────────────────
             "scene_lighting": "fixture_only",
-            # → Do NOT add THREE.AmbientLight, THREE.HemisphereLight, or any
-            #   THREE.DirectionalLight. The only light sources are per-fixture
-            #   objects created/destroyed with cue activation.
+            # No THREE.AmbientLight, HemisphereLight, or DirectionalLight.
+            # Illumination comes exclusively from per-cue fixture objects.
 
-            # FLOOR
-            "floor_material": "unlit_black",
-            # → Set the floor plane to MeshBasicMaterial({ color: 0x000000 }).
-            #   MeshBasicMaterial ignores all scene lights so nothing can color
-            #   the floor except an explicit emissive material — which should
-            #   never be applied to the floor.
+            # ── FLOOR ─────────────────────────────────────────────────────────
+            "floor_material": "subtle_standard",
+            # Use MeshStandardMaterial({
+            #   color: 0x111111,   // very dark grey — not pure black
+            #   roughness: 0.96,
+            #   metalness: 0.04,
+            #   envMapIntensity: 0,
+            # })
+            # This gives the floor a barely-visible surface that shows beam
+            # grazing without creating bright circular pools.
+            "floor_reflectivity": 0.06,
+            # Keep at this value — do not raise above 0.10 or floor pools return.
             "floor_receives_shadows": False,
-            "floor_receives_light":   False,
-
-            # LASER BEAM GEOMETRY
-            "laser_render_style": "line_segment",
-            # → Each active laser beam is a thin THREE.Line (or CatmullRomCurve)
-            #   from fixture.position in the direction of fixture.aim.
-            #   Length = fixture.beam_length metres. The line fades to alpha=0
-            #   at beam_length. It NEVER extends beyond beam_length.
-            #   It is NEVER intersected with the floor plane.
-            "laser_aim_is_horizontal": True,
-            # → All fixture.aim vectors have Y=0. Sweep animation is applied
-            #   in the XZ plane (pan) or the YZ plane (tilt) — never a static
-            #   downward projection.
-            "laser_off_means_invisible": True,
-            # → When cue_type == "laser_off", set all laser line opacity to 0
-            #   and remove any associated PointLight immediately.
-
-            # WASH / MOVING-HEAD BEAMS
-            "wash_render_style": "volumetric_cone",
-            # → Render wash/moving-head beams as additive THREE.CylinderGeometry
-            #   or ShaderMaterial cone volumes through the haze. Do NOT create a
-            #   THREE.SpotLight that casts onto the floor — or if you must use a
-            #   SpotLight, set castShadow=false and ensure the floor material
-            #   (MeshBasicMaterial) cannot receive it.
             "wash_floor_pool": False,
-            # → No circular light pool rendered on the floor surface for any
-            #   wash, PAR, or moving-head cue.
+            # No circular spot / pool rendered on floor for any wash/PAR cue.
 
-            # LASER ANIMATION
+            # ── LASER BEAM GEOMETRY ───────────────────────────────────────────
+            "laser_render_style": "line_segment",
+            # Each beam = THREE.Line from fixture.position in fixture.aim direction.
+            # Length exactly = fixture.beam_length metres; alpha fades 1→0 along length.
+            # NEVER extend beyond beam_length. NEVER intersect with floor plane.
+            "laser_aim_is_horizontal": True,
+            # All aim Y=0 → beams travel horizontally through haze at truss height.
+            "laser_off_means_invisible": True,
+            # cue_type "laser_off" → opacity 0 on all beams immediately.
+
+            # ── WASH BEAMS ────────────────────────────────────────────────────
+            "wash_render_style": "volumetric_cone",
+            # Additive CylinderGeometry / ShaderMaterial cone — no SpotLight.
+
+            # ── LASER SWEEP ANIMATION ─────────────────────────────────────────
             "laser_animation": "continuous_sweep",
-            # → Lasers must ALWAYS be sweeping when active. Use the cue's
-            #   speed parameter as the oscillation frequency (cycles/second =
-            #   speed * 0.5). The sweep oscillates between -scan_angle/2 and
-            #   +scan_angle/2 around the fixture's aim direction.
-            #   On each beat (from beat_times array), snap to the next
-            #   sweep_direction target and reverse if sweep_direction='alternating'.
             "laser_static_mode_allowed": False,
-            # → Never render a laser beam that is completely motionless.
-            #   Even during laser_scan cues with low speed, the beam must move.
+            # Every active laser must always be in motion.
+
+            # ── LASER SYMMETRY CONTRACT ───────────────────────────────────────
+            "laser_symmetry": "bilateral",
+            # The lasers group is split into three roles, read from fixture.id:
+            #   "laser_oh_l" → LEFT unit,   sweep_phase_offset = 0°
+            #   "laser_oh_r" → RIGHT unit,  sweep_phase_offset = 180°  ← mirror
+            #   "laser_oh_c" → CENTER unit, sweep_phase_offset = 0°  (full scan)
+            #
+            # Bilateral sweep rule:
+            #   sharedPhase = sin(t * freq * 2π) * phaseSign
+            #   LEFT  pan  = +sharedPhase  (pans right as phase increases)
+            #   RIGHT pan  = -sharedPhase  (pans LEFT — perfect mirror of LEFT)
+            #   CENTER pan = +sharedPhase  (follows left, scanning full width)
+            #
+            # This guarantees the two outer beams always form a symmetric V
+            # or X shape and span the full width of the stage simultaneously.
+
+            "laser_burst_on_downbeat": True,
+            # On bar downbeats (bar_times array), briefly fan all beams to
+            # max scan_angle simultaneously for 1–2 frames, then resume sweep.
+            # Creates the "burst" / explosive open-fan moment on the 1.
+
+            "laser_full_span_required": True,
+            # The combined sweep arc of all active lasers must cover the full
+            # horizontal stage width on every sweep cycle — never cluster on
+            # one side only.
         },
         description=(
             "Explicit renderer construction directives. These override any "

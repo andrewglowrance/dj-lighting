@@ -165,8 +165,12 @@ class EnvironmentRenderingProfile(BaseModel):
                                           description="Default haze density for the venue volume")
     screen_reflectivity:   float = Field(0.35, ge=0.0, le=1.0,
                                           description="LED backdrop / screen reflectivity [0=matte, 1=mirror]")
-    floor_reflectivity:    float = Field(0.0, ge=0.0, le=1.0,
-                                          description="Stage floor reflectivity. 0 = fully matte black, no light pooling on floor surface.")
+    floor_reflectivity:    float = Field(0.06, ge=0.0, le=1.0,
+                                          description=(
+                                              "Stage floor reflectivity [0=fully matte black, 1=mirror]. "
+                                              "Keep at 0.06 for a barely-visible dark surface that shows "
+                                              "fixture beams grazing it without creating bright floor pools."
+                                          ))
     beam_bloom_strength:   float = Field(0.55, ge=0.0, le=2.0,
                                           description="UnrealBloomPass strength for wash / moving-head beams")
     laser_bloom_strength:  float = Field(0.18, ge=0.0, le=2.0,
